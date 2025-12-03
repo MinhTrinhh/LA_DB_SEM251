@@ -1,0 +1,28 @@
+package org.minhtrinh.eventease251.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "REFUND")
+@Data
+public class Refund {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "Refunded_ID")
+    private Long refundedId;
+
+    @Column(name = "Refund_Amount")
+    private BigDecimal refundAmount;
+
+    @Column(name = "Reason")
+    private String reason;
+
+    @Column(name = "Request_Unit")
+    private String requestUnit;
+
+    @ManyToOne
+    @JoinColumn(name = "Order_ID")
+    private Order order;
+}

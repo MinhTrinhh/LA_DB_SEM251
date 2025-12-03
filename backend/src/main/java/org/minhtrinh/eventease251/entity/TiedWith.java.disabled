@@ -1,0 +1,30 @@
+package org.minhtrinh.eventease251.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+
+@Entity
+@Table(name = "TIED_WITH")
+@Data
+@IdClass(TiedWithId.class)
+public class TiedWith {
+    @Id
+    @Column(name = "Seat_ID")
+    private Long seatId;
+
+    @Id
+    @Column(name = "SeatMap_ID")
+    private Long seatMapId;
+
+    @Id
+    @OneToOne
+    @JoinColumn(name = "Ticket_ID")
+    private Ticket ticket;
+
+    @OneToOne
+    @JoinColumns({
+        @JoinColumn(name = "Seat_ID", referencedColumnName = "Seat_ID", insertable = false, updatable = false),
+        @JoinColumn(name = "SeatMap_ID", referencedColumnName = "SeatMap_ID", insertable = false, updatable = false)
+    })
+    private Seat seat;
+}

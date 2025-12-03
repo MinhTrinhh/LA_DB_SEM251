@@ -1,0 +1,20 @@
+package org.minhtrinh.eventease251.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+
+@Entity
+@Table(name = "USED_FOR")
+@Data
+@IdClass(UsedForId.class)
+public class UsedFor {
+    @Id
+    @ManyToOne
+    @JoinColumn(name = "Discount_ID")
+    private Discount discount;
+
+    @Id
+    @ManyToOne
+    @JoinColumn(name = "Category_ID")
+    private TicketCategory category;
+}

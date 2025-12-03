@@ -1,0 +1,19 @@
+package org.minhtrinh.eventease251.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+@Entity
+@Table(name = "BANK")
+@Data
+@EqualsAndHashCode(callSuper = true)
+@PrimaryKeyJoinColumn(name = "Method_ID")
+public class Bank extends PaymentMethod {
+    @Column(name = "Bank_ID")
+    private String bankId;
+
+    @Column(name = "Bank_Name")
+    private String bankName;
+}
+

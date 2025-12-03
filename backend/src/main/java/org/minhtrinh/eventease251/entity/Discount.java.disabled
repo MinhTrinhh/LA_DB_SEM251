@@ -1,0 +1,28 @@
+package org.minhtrinh.eventease251.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "DISCOUNT")
+@Data
+public class Discount {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "Discount_ID")
+    private Long discountId;
+
+    @Column(name = "Discount_Percent")
+    private BigDecimal discountPercent;
+
+    @Column(name = "Max_Discount_Amount")
+    private BigDecimal maxDiscountAmount;
+
+    @Column(name = "Expired_Date_Time")
+    private LocalDateTime expiredDateTime;
+
+    @Column(name = "Usage_limit")
+    private Integer usageLimit;
+}

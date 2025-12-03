@@ -1,0 +1,19 @@
+package org.minhtrinh.eventease251.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+@Entity
+@Table(name = "E_WALLET")
+@Data
+@EqualsAndHashCode(callSuper = true)
+@PrimaryKeyJoinColumn(name = "Method_ID")
+public class EWallet extends PaymentMethod {
+    @Column(name = "E_Wallet_ID")
+    private String eWalletId;
+
+    @Column(name = "E_Wallet_Name")
+    private String eWalletName;
+}
+

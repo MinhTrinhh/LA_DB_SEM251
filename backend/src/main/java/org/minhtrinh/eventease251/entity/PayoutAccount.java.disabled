@@ -1,0 +1,26 @@
+package org.minhtrinh.eventease251.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+
+@Entity
+@Table(name = "PAYOUT_ACCOUNT")
+@Data
+public class PayoutAccount {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "Account_ID")
+    private Long accountId;
+
+    @Column(name = "Account_Number")
+    private String accountNumber;
+
+    // Changed from Organizer to User (who has OrganizerProfile)
+    @ManyToOne
+    @JoinColumn(name = "Organizer_ID", referencedColumnName = "User_ID")
+    private User organizer;
+
+    @ManyToOne
+    @JoinColumn(name = "Method_ID")
+    private PaymentMethod method;
+}

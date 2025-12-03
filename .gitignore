@@ -1,0 +1,47 @@
+# ========================
+# GLOBAL / IDE FILES
+# ========================
+.DS_Store
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+
+# ========================
+# BACKEND (Spring Boot)
+# ========================
+backend/target/
+backend/help.md
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/**/*.log
+# Ignore compiled Java classes
+*.class
+
+# STS / Eclipse specific
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# ========================
+# FRONTEND (Node.js)
+# ========================
+# CRITICAL: Never commit dependencies
+frontend/node_modules/
+frontend/npm-debug.log
+frontend/yarn-error.log
+
+# Build outputs
+frontend/dist/
+frontend/build/
+
+# Environment variables (Security)
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local

@@ -1,0 +1,43 @@
+spring.application.name=event-ease-backend
+server.port=20001
+spring.docker.compose.lifecycle-management = start-and-stop
+
+##############
+##############
+##############
+
+# Flyway Configuration (Auto-enabled in Spring Boot)
+spring.flyway.enabled=true
+spring.flyway.baseline-on-migrate=true
+spring.flyway.locations=classpath:db.migration
+
+##############
+##############
+##############
+
+spring.datasource.url=jdbc:mysql://localhost:20000/event-ease-db
+spring.datasource.username=root
+spring.datasource.password=doan@251
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+spring.jpa.hibernate.ddl-auto=none
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.open-in-view=true
+
+##############
+##############
+##############
+
+jwt.secret=AxCNar8rxXyXcoboT1XWpSsgy/duovoyigZ52cVdVQgAxCNar8rxXyXcoboT1XWpSsgy/duovoyigZ52cVdVQg=
+jwt.expiration=86400000
+
+##############
+# reCAPTCHA  #
+##############
+
+# Replace with your actual Google reCAPTCHA v2 secret key
+recaptcha.secret=6Le3sR0sAAAAAO37DTieMwyPXBSlv_5nLcNAIDeg
+recaptcha.verify-url=https://www.google.com/recaptcha/api/siteverify
+
+

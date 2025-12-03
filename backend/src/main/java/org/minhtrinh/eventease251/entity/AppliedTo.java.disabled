@@ -1,0 +1,20 @@
+package org.minhtrinh.eventease251.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+
+@Entity
+@Table(name = "APPLIED_TO")
+@Data
+@IdClass(AppliedToId.class)
+public class AppliedTo {
+    @Id
+    @ManyToOne
+    @JoinColumn(name = "Discount_ID")
+    private Discount discount;
+
+    @Id
+    @ManyToOne
+    @JoinColumn(name = "Ticket_ID")
+    private Ticket ticket;
+}

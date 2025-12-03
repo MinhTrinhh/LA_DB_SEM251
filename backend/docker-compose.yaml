@@ -1,0 +1,23 @@
+services:
+  # MSSQL Server 2022
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: event-ease
+    restart: unless-stopped
+
+    # Set the environment variables
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Database@251"
+      MSSQL_PID: "Developer"
+
+    ports:
+      - "20000:1433"
+
+    # Define a volume to make your data persistent
+    volumes:
+      - mssql-data:/var/opt/mssql
+
+volumes:
+  mssql-data:
+# Default Network is Bridge

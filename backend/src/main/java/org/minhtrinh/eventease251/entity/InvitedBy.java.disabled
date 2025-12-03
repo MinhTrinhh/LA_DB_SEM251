@@ -1,0 +1,25 @@
+package org.minhtrinh.eventease251.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+
+@Entity
+@Table(name = "INVITED_BY")
+@Data
+public class InvitedBy {
+    @Id
+    @Column(name = "Invitee_ID")
+    private Long inviteeId;
+
+    @Column(name = "Invitor_ID")
+    private Long invitorId;
+
+    // Changed from Participant to User (who has ParticipantProfile)
+    @ManyToOne
+    @JoinColumn(name = "Invitee_ID", referencedColumnName = "User_ID", insertable = false, updatable = false)
+    private User invitee;
+
+    @ManyToOne
+    @JoinColumn(name = "Invitor_ID", referencedColumnName = "User_ID", insertable = false, updatable = false)
+    private User invitor;
+}
