@@ -5,6 +5,6 @@ import java.io.Serializable;
 
 @Data
 public class UseId implements Serializable {
-    private Session session; // Must match the @Id field type in Use entity
-    private SeatMap seatMap; // Must match the @Id field type in Use entity
+    private SessionId session; // Session has composite key, so use SessionId
+    private Long seatMap; // Must match SeatMap's primary key type (Long seatMapId)
 }

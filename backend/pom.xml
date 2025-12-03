@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.0</version>
+        <version>3.4.0</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>org.minhtrinh</groupId>
@@ -59,11 +59,13 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
+
         </dependency>
 
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-sqlserver</artifactId>
+
         </dependency>
 
         <!-- Lombok (optional, for cleaner code) -->
@@ -116,11 +118,11 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-docker-compose</artifactId>
-            <scope>runtime</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.boot</groupId>-->
+<!--            <artifactId>spring-boot-docker-compose</artifactId>-->
+<!--            <scope>runtime</scope>-->
+<!--        </dependency>-->
 
     </dependencies>
 
@@ -164,6 +166,30 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
+
+            <!-- Flyway Maven Plugin for database migrations -->
+<!--            <plugin>-->
+<!--                <groupId>org.flywaydb</groupId>-->
+<!--                <artifactId>flyway-maven-plugin</artifactId>-->
+<!--                <version>10.4.1</version>-->
+<!--                <configuration>-->
+<!--                    <url>jdbc:sqlserver://localhost:20000;databaseName=event-ease-db;encrypt=false;trustServerCertificate=true</url>-->
+<!--                    <user>sa</user>-->
+<!--                    <password>Database@251</password>-->
+<!--                    <locations>-->
+<!--                        <location>classpath:db.migration.mssql</location>-->
+<!--                    </locations>-->
+<!--                    <table>flyway_schema_history</table>-->
+<!--                    <baselineOnMigrate>true</baselineOnMigrate>-->
+<!--                </configuration>-->
+<!--                <dependencies>-->
+<!--                    <dependency>-->
+<!--                        <groupId>org.flywaydb</groupId>-->
+<!--                        <artifactId>flyway-sqlserver</artifactId>-->
+<!--                        <version>10.4.1</version>-->
+<!--                    </dependency>-->
+<!--                </dependencies>-->
+<!--            </plugin>-->
         </plugins>
     </build>
 

@@ -6,5 +6,5 @@ import java.io.Serializable;
 @Data
 public class SeatId implements Serializable {
     private Long seatId;
-    private SeatMap seatMap; // Must match the @Id field type in Seat entity (SeatMap, not Long)
+    private Long seatMap; // Must match SeatMap's primary key type (Long seatMapId)
 }
