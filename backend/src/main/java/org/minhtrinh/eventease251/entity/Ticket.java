@@ -2,6 +2,7 @@ package org.minhtrinh.eventease251.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "TICKET")
@@ -25,4 +26,10 @@ public class Ticket {
     @ManyToOne
     @JoinColumn(name = "Order_ID")
     private Order order;
+    
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+    
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }

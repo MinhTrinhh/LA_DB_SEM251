@@ -75,6 +75,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/events/public/**").permitAll()
                 .requestMatchers("/api/profiles/**").authenticated() // Profile endpoints require JWT
                 .requestMatchers("/api/users/**").authenticated() // User endpoints require JWT
+                .requestMatchers("/api/orders/**").authenticated() // Order endpoints require JWT (participant only)
                 .anyRequest().authenticated()
             )
             // Add JWT filter before Spring Security's authentication filter

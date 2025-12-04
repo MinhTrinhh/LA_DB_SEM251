@@ -1,9 +1,0 @@
-package org.minhtrinh.eventease251.repository;
-
-import org.minhtrinh.eventease251.entity.Ticket;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
-@Repository
-public interface TicketRepository extends JpaRepository<Ticket, Long> {
-}
