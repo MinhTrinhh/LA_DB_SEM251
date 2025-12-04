@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -6,20 +6,59 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, MapPin, Clock, Plus, Minus, ArrowLeft, Maximize2 } from "lucide-react";
-import { mockEvents, SelectedTickets } from "@/data/mockEvents";
+import { eventsApi } from "@/api/events.api";
+import { BackendEvent, BackendSession } from "@/types/api.types";
+
+interface SelectedTickets {
+  [ticketCategoryId: number]: number; // ticketCategoryId -> quantity
+}
 
 const TicketSelection = () => {
   const { eventId, sessionIndex } = useParams();
   const navigate = useNavigate();
-  const event = mockEvents.find(e => e.id === eventId);
+  const [event, setEvent] = useState<BackendEvent | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedTickets, setSelectedTickets] = useState<SelectedTickets>({});
 
-  if (!event || !event.sessions) {
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        setLoading(true);
+        const eventData = await eventsApi.getEventById(Number(eventId));
+        setEvent(eventData);
+      } catch (err) {
+        console.error('Error fetching event:', err);
+        setError('Failed to load event details');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (eventId) {
+      fetchEvent();
+    }
+  }, [eventId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <div className="container mx-auto px-4 py-20 text-center">
+          <h1 className="text-2xl font-bold">Loading event...</h1>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !event) {
     return (
       <div className="min-h-screen">
         <Header />
         <div className="container mx-auto px-4 py-20 text-center">
           <h1 className="text-4xl font-bold mb-4">Event Not Found</h1>
+          <p className="text-muted-foreground mb-4">{error}</p>
           <Button asChild>
             <Link to="/">Back to Events</Link>
           </Button>
@@ -47,15 +86,16 @@ const TicketSelection = () => {
     );
   }
 
-  const updateTicketQuantity = (categoryName: string, delta: number) => {
+  const updateTicketQuantity = (ticketCategoryId: number, delta: number) => {
     setSelectedTickets(prev => ({
       ...prev,
-      [categoryName]: Math.max(0, (prev[categoryName] || 0) + delta)
+      [ticketCategoryId]: Math.max(0, (prev[ticketCategoryId] || 0) + delta)
     }));
   };
 
-  const totalAmount = Object.entries(selectedTickets).reduce((sum, [category, quantity]) => {
-    const ticketCategory = session.ticketCategories?.find(tc => tc.name === category);
+  const totalAmount = Object.entries(selectedTickets).reduce((sum, [categoryIdStr, quantity]) => {
+    const categoryId = Number(categoryIdStr);
+    const ticketCategory = session.ticketCategories?.find(tc => tc.ticketCategoryId === categoryId);
     return sum + (ticketCategory?.price || 0) * quantity;
   }, 0);
 
@@ -68,7 +108,7 @@ const TicketSelection = () => {
           selectedTickets,
           totalAmount,
           totalTickets,
-          sessionIndex: sessionIdx,
+          sessionId: session.sessionId,
           session,
           event
         }
@@ -114,17 +154,17 @@ const TicketSelection = () => {
               <div className="space-y-3 text-sm">
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <Calendar className="w-4 h-4 text-primary shrink-0" />
-                  <span>{session.date}</span>
+                  <span>{new Date(session.startDateTime).toLocaleDateString()}</span>
                 </div>
 
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <Clock className="w-4 h-4 text-primary shrink-0" />
-                  <span>{session.time}</span>
+                  <span>{new Date(session.startDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
 
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <MapPin className="w-4 h-4 text-primary shrink-0" />
-                  <span>{event.venue}</span>
+                  <span>{session.venueName || event.location || 'Online Event'}</span>
                 </div>
               </div>
             </div>
@@ -135,52 +175,55 @@ const TicketSelection = () => {
             <h2 className="text-lg font-bold mb-4">Select Tickets</h2>
 
             <div className="space-y-3">
-              {session.ticketCategories && session.ticketCategories.map((category) => (
-                <Card key={category.name} className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 pr-4">
-                      <h3 className="font-semibold mb-1">{category.name}</h3>
-                      <p className="text-sm text-muted-foreground">{category.description}</p>
+              {session.ticketCategories && session.ticketCategories.map((category) => {
+                const available = category.quantity - (category.soldQuantity || 0);
+                return (
+                  <Card key={category.ticketCategoryId} className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 pr-4">
+                        <h3 className="font-semibold mb-1">{category.categoryName}</h3>
+                        <p className="text-sm text-muted-foreground">Ticket for {event.title}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xl font-bold text-primary">
+                          {category.price === 0 ? 'Free' : `$${category.price}`}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xl font-bold text-primary">
-                        {category.price === 0 ? 'Free' : `$${category.price}`}
-                      </p>
-                    </div>
-                  </div>
 
-                  <Separator className="my-3" />
+                    <Separator className="my-3" />
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {category.available} available
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        onClick={() => updateTicketQuantity(category.name, -1)}
-                        disabled={!selectedTickets[category.name]}
-                        className="h-8 w-8"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </Button>
-                      <span className="w-8 text-center font-semibold">
-                        {selectedTickets[category.name] || 0}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        {available} available
                       </span>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        onClick={() => updateTicketQuantity(category.name, 1)}
-                        disabled={category.available === 0}
-                        className="h-8 w-8"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => updateTicketQuantity(category.ticketCategoryId, -1)}
+                          disabled={!selectedTickets[category.ticketCategoryId]}
+                          className="h-8 w-8"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </Button>
+                        <span className="w-8 text-center font-semibold">
+                          {selectedTickets[category.ticketCategoryId] || 0}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => updateTicketQuantity(category.ticketCategoryId, 1)}
+                          disabled={available === 0}
+                          className="h-8 w-8"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           </div>
 
@@ -191,13 +234,14 @@ const TicketSelection = () => {
             {/* Selected Tickets Breakdown */}
             {totalTickets > 0 && (
               <div className="space-y-2 mb-4 pb-4 border-b border-border">
-                {Object.entries(selectedTickets).map(([category, quantity]) => {
+                {Object.entries(selectedTickets).map(([categoryIdStr, quantity]) => {
                   if (quantity === 0) return null;
-                  const ticketCategory = session.ticketCategories?.find(tc => tc.name === category);
+                  const categoryId = Number(categoryIdStr);
+                  const ticketCategory = session.ticketCategories?.find(tc => tc.ticketCategoryId === categoryId);
                   const price = ticketCategory?.price || 0;
                   return (
-                    <div key={category} className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">{category} × {quantity}</span>
+                    <div key={categoryId} className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">{ticketCategory?.categoryName} × {quantity}</span>
                       <span className="font-semibold">
                         {price === 0 ? 'Free' : `$${(price * quantity).toFixed(2)}`}
                       </span>

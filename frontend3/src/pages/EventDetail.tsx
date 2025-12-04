@@ -239,7 +239,7 @@ const EventDetail = () => {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  navigate(`/events/${event.eventId}/tickets`);
+                                  navigate(`/event/${event.eventId}/tickets/0`);
                                 }}
                               >
                                 Book Now
@@ -318,7 +318,7 @@ const EventDetail = () => {
                             <Button 
                               variant="cta" 
                               className="w-full"
-                              onClick={() => navigate(`/events/${event.eventId}/tickets`)}
+                              onClick={() => navigate(`/event/${event.eventId}/tickets/0`)}
                             >
                               Book Now
                             </Button>
@@ -389,7 +389,7 @@ const EventDetail = () => {
                 <Button 
                   variant="cta" 
                   className="w-full h-12 text-base mb-4"
-                  onClick={() => navigate(`/events/${event.eventId}/tickets`)}
+                  onClick={() => navigate(`/event/${event.eventId}/tickets/0`)}
                 >
                   Book Now
                 </Button>
