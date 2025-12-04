@@ -5,12 +5,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.minhtrinh.eventease251.dto.CreateEventRequest;
 import org.minhtrinh.eventease251.dto.CreateEventResponse;
 import org.minhtrinh.eventease251.dto.EventDTO;
+import org.minhtrinh.eventease251.dto.SessionDTO;
+import org.minhtrinh.eventease251.dto.TicketCategoryDTO;
 import org.minhtrinh.eventease251.entity.Event;
 import org.minhtrinh.eventease251.entity.EventStatus;
 import org.minhtrinh.eventease251.entity.User;
+import org.minhtrinh.eventease251.entity.Session;
+import org.minhtrinh.eventease251.entity.OnlineSession;
+import org.minhtrinh.eventease251.entity.OfflineSession;
+import org.minhtrinh.eventease251.entity.TicketCategory;
 import org.minhtrinh.eventease251.repository.EventRepository;
 import org.minhtrinh.eventease251.repository.EventRepositoryCustomImpl;
+import org.minhtrinh.eventease251.repository.SessionRepository;
 import org.minhtrinh.eventease251.repository.UserRepository;
+import org.minhtrinh.eventease251.repository.TicketCategoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +33,8 @@ public class EventService {
     private final EventRepositoryCustomImpl eventRepositoryCustom;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
+    private final SessionRepository sessionRepository;
+    private final TicketCategoryRepository ticketCategoryRepository;
     
     /**
      * Create a new event using JDBC Template
@@ -122,7 +132,102 @@ public class EventService {
         dto.setEndDateTime(event.getEndDateTime());
         dto.setTimestamp(event.getTimestamp());
         dto.setPosterUrl(event.getPosterUrl());
+        
+        // Fetch and convert sessions
+        List<Session> sessions = sessionRepository.findByEvent(event);
+        List<SessionDTO> sessionDTOs = sessions.stream()
+                .map(this::convertSessionToDTO)
+                .collect(Collectors.toList());
+        dto.setSessions(sessionDTOs);
+        
+        // Set location from first offline session if available
+        sessions.stream()
+                .filter(s -> s instanceof OfflineSession)
+                .findFirst()
+                .ifPresent(s -> {
+                    OfflineSession offline = (OfflineSession) s;
+                    dto.setLocation(offline.getVenueName());
+                });
+        
         return dto;
+    }
+    
+    /**
+     * Convert Session entity to SessionDTO
+     * Handles both OnlineSession and OfflineSession polymorphism
+     */
+    private SessionDTO convertSessionToDTO(Session session) {
+        // Load ticket categories for this session
+        List<TicketCategory> ticketCategories = ticketCategoryRepository.findBySession(session);
+        List<TicketCategoryDTO> ticketCategoryDTOs = ticketCategories.stream()
+                .map(this::convertTicketCategoryToDTO)
+                .collect(Collectors.toList());
+        
+        SessionDTO.SessionDTOBuilder builder = SessionDTO.builder()
+                .sessionId(session.getSessionId())
+                .startDateTime(session.getStartDateTime())
+                .endDateTime(session.getEndDateTime())
+                .maxCapacity(session.getMaxCapacity())
+                .type(session.getType())
+                .ticketCategories(ticketCategoryDTOs);
+        
+        // Handle polymorphic session types
+        if (session instanceof OfflineSession) {
+            OfflineSession offline = (OfflineSession) session;
+            builder.venueName(offline.getVenueName())
+                   .venueAddress(offline.getVenueAddress());
+        } else if (session instanceof OnlineSession) {
+            OnlineSession online = (OnlineSession) session;
+            builder.meetingUrl(online.getMeetingUrl())
+                   .platformName(online.getPlatformName());
+        }
+        
+        return builder.build();
+    }
+
+    /**
+     * Convert TicketCategory entity to TicketCategoryDTO
+     */
+    private TicketCategoryDTO convertTicketCategoryToDTO(TicketCategory category) {
+        return TicketCategoryDTO.builder()
+                .ticketCategoryId(category.getCategoryId())
+                .sessionId(category.getSession().getSessionId())
+                .categoryName(category.getCategoryName())
+                .price(category.getPrice())
+                .quantity(category.getMaximumSlot())
+                .soldQuantity(0) // TODO: Calculate sold quantity from tickets
+                .build();
+    }
+
+    /**
+     * Get all public events (non-draft events)
+     * Returns events with status: COMING_SOON, HAPPENING, ENDED
+     */
+    public List<EventDTO> getAllPublicEvents() {
+        log.info("EventService: Getting all public events");
+        List<Event> events = eventRepository.findAll();
+        
+        // Filter out draft events
+        return events.stream()
+                .filter(event -> event.getEventStatus() != EventStatus.DRAFT)
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get event by ID with full details
+     */
+    public EventDTO getEventById(Long eventId) {
+        log.info("EventService: Getting event details for ID: {}", eventId);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Event not found with ID: " + eventId));
+        
+        // Don't return draft events for public access
+        if (event.getEventStatus() == EventStatus.DRAFT) {
+            throw new RuntimeException("Event is not available");
+        }
+        
+        return convertToDTO(event);
     }
 
 }

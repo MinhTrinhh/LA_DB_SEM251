@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import org.minhtrinh.eventease251.entity.EventStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -20,5 +21,7 @@ public class EventDTO {
     private LocalDateTime endDateTime;
     private LocalDateTime timestamp;
     private String posterUrl;
+    private String location; // venue name for display
+    private List<SessionDTO> sessions; // Include sessions in event response
 }
 

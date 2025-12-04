@@ -99,5 +99,52 @@ public class EventController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
+
+    /**
+     * Get all public events (no authentication required)
+     * Only returns published events (COMING_SOON, HAPPENING, ENDED)
+     */
+    @GetMapping("/public")
+    public ResponseEntity<?> getAllPublicEvents() {
+        try {
+            List<EventDTO> events = eventService.getAllPublicEvents();
+            return ResponseEntity.ok(events);
+        } catch (RuntimeException e) {
+            ErrorResponse errorResponse = new ErrorResponse();
+            errorResponse.setMessage(e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    /**
+     * Get event details by ID (no authentication required)
+     * Returns event with sessions and ticket categories
+     */
+    @GetMapping("/public/{eventId}")
+    public ResponseEntity<?> getEventById(@PathVariable Long eventId) {
+        try {
+            EventDTO event = eventService.getEventById(eventId);
+            return ResponseEntity.ok(event);
+        } catch (RuntimeException e) {
+            ErrorResponse errorResponse = new ErrorResponse();
+            errorResponse.setMessage(e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+        }
+    }
+
+    /**
+     * Get all sessions for a specific event (no authentication required)
+     */
+    @GetMapping("/public/{eventId}/sessions")
+    public ResponseEntity<?> getEventSessions(@PathVariable Long eventId) {
+        try {
+            EventDTO event = eventService.getEventById(eventId);
+            return ResponseEntity.ok(event.getSessions());
+        } catch (RuntimeException e) {
+            ErrorResponse errorResponse = new ErrorResponse();
+            errorResponse.setMessage(e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+        }
+    }
 }
 

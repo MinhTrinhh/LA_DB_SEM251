@@ -10,7 +10,7 @@ const EventCard = ({ event }: EventCardProps) => {
   return (
     <Link 
       to={`/event/${event.id}`}
-      className="group block glass glass-border rounded-xl overflow-hidden hover:scale-105 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10"
+      className="group block glass glass-border rounded-xl overflow-hidden hover:scale-105 transition-all duration-300 hover:shadow-lg hover:shadow-primary/30 hover:border-primary hover:ring-2 hover:ring-primary/50"
     >
       {/* Image */}
       <div className="aspect-video overflow-hidden">

@@ -65,9 +65,7 @@ const EventDetail = () => {
       <div className="min-h-screen">
         <Header />
         <div className="container mx-auto px-4 py-20 text-center">
-          <h1 className="text-4xl font-bold mb-4 text-destructive">
-            {error ? 'Error Loading Event' : 'Event Not Found'}
-          </h1>
+          <h1 className="text-4xl font-bold mb-4">Event Not Found</h1>
           <p className="text-muted-foreground mb-6">{error || 'The event you are looking for does not exist'}</p>
           <Button asChild>
             <Link to="/">Back to Events</Link>
@@ -78,7 +76,25 @@ const EventDetail = () => {
     );
   }
 
-  const hasMultipleSessions = false; // Can be expanded later
+  const hasMultipleSessions = event.sessions && event.sessions.length > 1;
+
+  // Find minimum price across all ticket categories in all sessions
+  const getMinimumPrice = (): number | null => {
+    if (!event.sessions || event.sessions.length === 0) return null;
+    
+    const allPrices: number[] = [];
+    event.sessions.forEach(session => {
+      if (session.ticketCategories && session.ticketCategories.length > 0) {
+        session.ticketCategories.forEach(category => {
+          allPrices.push(Number(category.price));
+        });
+      }
+    });
+    
+    return allPrices.length > 0 ? Math.min(...allPrices) : null;
+  };
+
+  const minPrice = getMinimumPrice();
 
   return (
     <div className="min-h-screen">
@@ -158,7 +174,7 @@ const EventDetail = () => {
                   <MapPin className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="font-medium">{event.location}</p>
+                    <p className="font-medium">{event.location || 'TBA'}</p>
                   </div>
                 </div>
               </div>
@@ -166,8 +182,10 @@ const EventDetail = () => {
 
             {/* About Section */}
             <div className="glass glass-border rounded-xl p-6">
-              <h2 className="text-2xl font-semibold mb-4">About This Event</h2>
-              <p className="text-muted-foreground leading-relaxed">{event.generalIntroduction || event.detailedIntroduction || 'No description available'}</p>
+              <h2 className="text-2xl font-bold mb-4">About This Event</h2>
+              <p className="text-muted-foreground leading-relaxed">
+                {event.generalIntroduction || 'No description available'}
+              </p>
             </div>
             
             {/* Event Schedule with Collapsible Sessions */}
@@ -192,11 +210,27 @@ const EventDetail = () => {
                               />
                               <div className="flex items-center gap-2 text-primary">
                                 <Calendar className="w-4 h-4" />
-                                <span className="font-semibold">{session.date}</span>
+                                <span className="font-semibold">
+                                  {new Date(session.startDateTime).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  })}
+                                </span>
                               </div>
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <Clock className="w-4 h-4" />
-                                <span className="text-sm">{session.time}</span>
+                                <span className="text-sm">
+                                  {new Date(session.startDateTime).toLocaleTimeString('en-US', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                  {' - '}
+                                  {new Date(session.endDateTime).toLocaleTimeString('en-US', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
                               </div>
                             </div>
                             <div>
@@ -205,7 +239,7 @@ const EventDetail = () => {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  navigate(`/event/${event.id}/tickets/${sessionIndex}`);
+                                  navigate(`/events/${event.eventId}/tickets`);
                                 }}
                               >
                                 Book Now
@@ -216,12 +250,12 @@ const EventDetail = () => {
 
                         <CollapsibleContent>
                           <div className="border-t border-border p-4 space-y-3 bg-background/50">
-                            {session.ticketCategories.map((category, catIndex) => (
+                            {session.ticketCategories && session.ticketCategories.map((category, catIndex) => (
                               <div 
                                 key={catIndex} 
                                 className="flex items-center justify-between py-2 px-3 rounded hover:bg-foreground/5"
                               >
-                                <span className="font-medium">{category.name}</span>
+                                <span className="font-medium">{category.categoryName}</span>
                                 <span className="text-lg font-bold text-primary">
                                   {category.price === 0 ? 'Free' : `$${category.price.toFixed(2)}`}
                                 </span>
@@ -241,21 +275,39 @@ const EventDetail = () => {
                           <div className="flex items-center gap-4 mb-4 pb-3 border-b border-border">
                             <div className="flex items-center gap-2 text-primary">
                               <Calendar className="w-4 h-4" />
-                              <span className="font-semibold">{event.sessions[0].date}</span>
+                              <span className="font-semibold">
+                                {new Date(event.sessions[0].startDateTime).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </span>
                             </div>
                             <div className="flex items-center gap-2 text-muted-foreground">
                               <Clock className="w-4 h-4" />
-                              <span className="text-sm">{event.sessions[0].time}</span>
+                              <span className="text-sm">
+                                {new Date(event.sessions[0].startDateTime).toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                                {' - '}
+                                {new Date(event.sessions[0].endDateTime).toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
                             </div>
                           </div>
-                          {event.sessions[0].ticketCategories.map((category, catIndex) => (
+                          {event.sessions[0].ticketCategories && event.sessions[0].ticketCategories.map((category, catIndex) => (
                             <div 
                               key={catIndex} 
                               className="flex items-center justify-between py-3 px-3 rounded hover:bg-foreground/5"
                             >
                               <div>
-                                <span className="font-medium block">{category.name}</span>
-                                <span className="text-sm text-muted-foreground">{category.description}</span>
+                                <span className="font-medium block">{category.categoryName}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  {category.quantity} tickets available
+                                </span>
                               </div>
                               <span className="text-xl font-bold text-primary">
                                 {category.price === 0 ? 'Free' : `$${category.price.toFixed(2)}`}
@@ -266,27 +318,16 @@ const EventDetail = () => {
                             <Button 
                               variant="cta" 
                               className="w-full"
-                              onClick={() => navigate(`/event/${event.id}/tickets/0`)}
+                              onClick={() => navigate(`/events/${event.eventId}/tickets`)}
                             >
                               Book Now
                             </Button>
                           </div>
                         </>
                       ) : (
-                        event.ticketCategories.map((category, catIndex) => (
-                          <div 
-                            key={catIndex} 
-                            className="flex items-center justify-between py-3 px-3 rounded hover:bg-foreground/5"
-                          >
-                            <div>
-                              <span className="font-medium block">{category.name}</span>
-                              <span className="text-sm text-muted-foreground">{category.description}</span>
-                            </div>
-                            <span className="text-xl font-bold text-primary">
-                              {category.price === 0 ? 'Free' : `$${category.price.toFixed(2)}`}
-                            </span>
-                          </div>
-                        ))
+                        <p className="text-muted-foreground text-center py-4">
+                          No sessions available yet
+                        </p>
                       )}
                     </div>
                   </div>
@@ -300,12 +341,12 @@ const EventDetail = () => {
               <div className="flex items-center gap-3 mb-4">
                 <Avatar className="w-12 h-12">
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    {event.organizer.avatar}
+                    O{event.organizerId}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium">{event.organizer.name}</p>
-                  <p className="text-sm text-muted-foreground">{event.organizer.email}</p>
+                  <p className="font-medium">Organizer #{event.organizerId}</p>
+                  <p className="text-sm text-muted-foreground">organizer@eventease.com</p>
                 </div>
               </div>
               <Button variant="outline" className="w-full gap-2">
@@ -323,7 +364,12 @@ const EventDetail = () => {
               <div className="mb-6">
                 <p className="text-sm text-muted-foreground mb-2">Starting from</p>
                 <p className="text-4xl font-bold text-primary">
-                  {event.isFree ? 'Free' : `$${Math.min(...event.ticketCategories.map(cat => cat.price))}`}
+                  {minPrice !== null
+                    ? minPrice === 0
+                      ? 'Free'
+                      : `$${minPrice.toFixed(2)}`
+                    : 'TBA'
+                  }
                 </p>
               </div>
 
@@ -343,7 +389,7 @@ const EventDetail = () => {
                 <Button 
                   variant="cta" 
                   className="w-full h-12 text-base mb-4"
-                  onClick={() => navigate(`/event/${event.id}/tickets/0`)}
+                  onClick={() => navigate(`/events/${event.eventId}/tickets`)}
                 >
                   Book Now
                 </Button>
@@ -367,3 +413,4 @@ const EventDetail = () => {
 };
 
 export default EventDetail;
+ 
