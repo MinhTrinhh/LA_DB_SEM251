@@ -20,3 +20,9 @@ VITE_API_BASE_URL=http://localhost:20001
 # reCAPTCHA (get from https://www.google.com/recaptcha/admin/create)
 VITE_RECAPTCHA_SITE_KEY=6Le3sR0sAAAAAJ008sfkK8P4Otkj4ZMKctk8AnXB
 
+
+
+
+ĐÃ SỬA LỖI REFER TO USER THAY VÀO ĐÓ REFER TO PROFILE 
+TẠO THÊM TÍNH NĂNG QUÉT QR (TÀI KHOẢN CỦA TAO)
+BÂY GIỜ CODE RẤT DƠ VẪN ĐANG XÀI HIBERNATE VẪN LỚN TÍNH NĂNG, PHẦN NÀO THẰNG NÀO LÀM THÌ CLEAN CODE PHẦN ĐÓ
