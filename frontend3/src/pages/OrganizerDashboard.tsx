@@ -1,64 +1,70 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import StatsCard from "@/components/StatsCard";
 import EventManagementCard from "@/components/EventManagementCard";
 import { Button } from "@/components/ui/button";
-import { Calendar, DollarSign, Users, TrendingUp, Plus, Settings } from "lucide-react";
+import { Calendar, DollarSign, Users, TrendingUp, Plus, Settings, FileText, Loader2 } from "lucide-react";
 import { mockEvents } from "@/data/mockEvents";
 import { mockOrganizerStats, mockSalesData } from "@/data/mockOrganizer";
-import { Link } from "react-router-dom";
-
-const OrganizerDashboard = () => {
+import { eventsApi } from "@/api/events.api";
+import { BackendEvent, EventStatus } from "@/types/api.types";
+import { Event } from "@/data/mockEvents";
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all');
 
   // Filter events based on current user (in real app, would filter by organizerId)
-  const myEvents = mockEvents.filter(event => ['1', '2', '3'].includes(event.id));
-  
-  const filteredEvents = myEvents.filter(event => {
+  const [myEvents, setMyEvents] = useState<BackendEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
     const eventDate = new Date(event.date);
-    const now = new Date();
-    
-    if (filter === 'upcoming') return eventDate > now;
-    if (filter === 'past') return eventDate <= now;
-    return true;
-  });
-
-  return (
-    <div className="min-h-screen">
-      <Header />
-
-      <main className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+  useEffect(() => {
+    const fetchMyEvents = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const events = await eventsApi.getMyEvents();
+        setMyEvents(events);
+      } catch (err: any) {
+        console.error('Failed to fetch events:', err);
+        setError(err.response?.data?.message || 'Failed to load your events');
+      } finally {
+        setLoading(false);
+      }
+    };
           <div>
-            <h1 className="text-4xl font-bold mb-2">Organizer Dashboard</h1>
-            <p className="text-muted-foreground">Manage your events and track performance</p>
-          </div>
-          <div className="flex gap-3">
+    fetchMyEvents();
+  }, []);
+
+  // Filter events based on date
             <Button size="lg" variant="outline" className="gap-2" asChild>
-              <Link to="/organizer/profile">
-                <Settings className="w-5 h-5" />
-                Profile Settings
-              </Link>
+    // Filter out drafts
+    if (event.eventStatus === EventStatus.DRAFT) {
+      return false;
+    }
+
+    const eventDate = event.startDateTime ? new Date(event.startDateTime) : null;
+              <Link to="/organize/drafts">
+                <FileText className="w-5 h-5" />
+    if (filter === 'upcoming' && eventDate) return eventDate > now;
+    if (filter === 'past' && eventDate) return eventDate <= now;
             </Button>
             <Button size="lg" variant="cta" className="gap-2" asChild>
               <Link to="/organize/create">
-                <Plus className="w-5 h-5" />
-                Create New Event
-              </Link>
-            </Button>
-          </div>
-        </div>
+  // Convert BackendEvent to Event format for EventManagementCard
+  const convertToEvent = (backendEvent: BackendEvent): Event => {
+    return {
+      id: backendEvent.eventId.toString(),
+      title: backendEvent.title,
+      date: backendEvent.startDateTime || backendEvent.startDate || '',
+      location: backendEvent.location || 'TBA',
+      price: 0, // Will be calculated from ticket categories if needed
+      category: 'Event',
+      image: backendEvent.posterUrl || '/placeholder.svg',
+      isFeatured: false,
+      description: backendEvent.generalIntroduction
+    };
+  };
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <StatsCard
-            title="Total Events"
-            value={mockOrganizerStats.totalEvents}
-            icon={Calendar}
-            iconColor="bg-primary/20 text-primary"
-          />
           <StatsCard
             title="Total Revenue"
             value={`$${mockOrganizerStats.totalRevenue.toLocaleString()}`}

@@ -2,63 +2,63 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, Heart, Share2, Mail, ChevronDown } from "lucide-react";
+import { Calendar, Clock, MapPin, Heart, Share2, Mail, Loader2 } from "lucide-react";
 import { mockEvents } from "@/data/mockEvents";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { eventsApi } from "@/api/events.api";
+import { BackendEvent } from "@/types/api.types";
 
 const EventDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const event = mockEvents.find(e => e.id === id);
-  const [openSessions, setOpenSessions] = useState<number[]>([]);
+  const [event, setEvent] = useState<BackendEvent | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!event) {
+  useEffect(() => {
+    const fetchEvent = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const eventData = await eventsApi.getEventById(parseInt(id));
+        setEvent(eventData);
+      } catch (err) {
+        console.error('Failed to fetch event:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load event details';
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvent();
+  }, [id]);
+        : [...prev, index]
+  if (loading) {
     return (
       <div className="min-h-screen">
         <Header />
         <div className="container mx-auto px-4 py-20 text-center">
-          <h1 className="text-4xl font-bold mb-4">Event Not Found</h1>
-          <Button asChild>
-            <Link to="/">Back to Events</Link>
-          </Button>
+          <Loader2 className="w-16 h-16 mx-auto mb-4 text-primary animate-spin" />
+          <h1 className="text-2xl font-bold mb-2">Loading event details...</h1>
+          <p className="text-muted-foreground">Please wait</p>
         </div>
         <Footer />
       </div>
     );
   }
 
-  const hasMultipleSessions = event.sessions && event.sessions.length > 1;
-  
-  const toggleSession = (index: number) => {
-    setOpenSessions(prev => 
-      prev.includes(index) 
-        ? prev.filter(i => i !== index)
-        : [...prev, index]
-    );
-  };
-
-  return (
-    <div className="min-h-screen">
-      <Header />
-
-      <main className="container mx-auto px-4 py-8">
-        {/* Hero Section */}
-        <div className="relative h-[60vh] rounded-2xl overflow-hidden mb-8">
-          <img
-            src={event.image}
-            alt={event.title}
-            className="w-full h-full object-cover"
-          />
+  if (error || !event) {
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
           
           {/* Quick Actions */}
           <div className="absolute top-4 right-4 flex gap-2">
-            <Button size="icon" variant="outline" className="rounded-full">
-              <Heart className="w-5 h-5" />
-            </Button>
-            <Button size="icon" variant="outline" className="rounded-full">
+          <h1 className="text-4xl font-bold mb-4 text-destructive">
+            {error ? 'Error Loading Event' : 'Event Not Found'}
+          </h1>
+          <p className="text-muted-foreground mb-6">{error || 'The event you are looking for does not exist'}</p>
               <Share2 className="w-5 h-5" />
             </Button>
           </div>
@@ -68,8 +68,8 @@ const EventDetail = () => {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Title & Info Card */}
-            <div className="glass glass-border rounded-xl p-6">
-              <h1 className="text-3xl md:text-4xl font-bold mb-6">{event.title}</h1>
+  // For now, we'll assume single session - can be expanded later
+  const hasMultipleSessions = false;
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-start gap-3">
@@ -77,9 +77,9 @@ const EventDetail = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Date</p>
                     <p className="font-medium">
-                      {new Date(event.date).toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric',
+                      {new Date(event.date).toLocaleDateString('en-US', {
+                        month: 'short',
+            src={event.posterUrl || '/placeholder.svg'}
                         year: 'numeric'
                       })}
                     </p>
@@ -104,117 +104,117 @@ const EventDetail = () => {
 
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="font-medium">{event.location}</p>
+                {event.startDateTime && (
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Date</p>
+                      <p className="font-medium">
+                        {new Date(event.startDateTime).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* About Section */}
+                )}
             <div className="glass glass-border rounded-xl p-6">
-              <h2 className="text-2xl font-bold mb-4">About This Event</h2>
-              <p className="text-muted-foreground leading-relaxed">{event.description}</p>
-            </div>
-            
-            {/* Event Schedule with Collapsible Sessions */}
-            <div className="glass glass-border rounded-xl p-6">
-              <h2 className="text-2xl font-bold mb-4">Event Schedule</h2>
-              <div className="space-y-3">
-                {hasMultipleSessions && event.sessions ? (
-                  event.sessions.map((session, sessionIndex) => (
-                    <Collapsible
-                      key={sessionIndex}
-                      open={openSessions.includes(sessionIndex)}
-                      onOpenChange={() => toggleSession(sessionIndex)}
-                    >
-                      <div className="glass-border rounded-lg overflow-hidden">
-                        <CollapsibleTrigger className="w-full">
-                          <div className="flex items-center justify-between p-4 hover:bg-foreground/5 transition-colors">
-                            <div className="flex items-center gap-3 flex-1">
-                              <ChevronDown 
-                                className={`w-5 h-5 text-muted-foreground transition-transform shrink-0 ${
+                {event.startDateTime && event.endDateTime && (
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Time</p>
+                      <p className="font-medium">
+                        {new Date(event.startDateTime).toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })} - {new Date(event.endDateTime).toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
                                   openSessions.includes(sessionIndex) ? 'rotate-180' : ''
-                                }`} 
+                )}
                               />
-                              <div className="flex items-center gap-2 text-primary">
-                                <Calendar className="w-4 h-4" />
-                                <span className="font-semibold">{session.date}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <Clock className="w-4 h-4" />
-                                <span className="text-sm">{session.time}</span>
-                              </div>
-                            </div>
+                {event.location && (
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Location</p>
+                      <p className="font-medium">{event.location}</p>
+                    </div>
+                  </div>
+                )}
                             <div>
-                              <Button 
-                                variant="cta" 
+                              <Button
+                                variant="cta"
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  navigate(`/event/${event.id}/tickets/${sessionIndex}`);
-                                }}
-                              >
+              <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                {event.generalIntroduction}
+              </p>
                                 Book Now
                               </Button>
-                            </div>
+            {/* Event Schedule - Simplified for now */}
                           </div>
                         </CollapsibleTrigger>
 
-                        <CollapsibleContent>
-                          <div className="border-t border-border p-4 space-y-3 bg-background/50">
-                            {session.ticketCategories.map((category, catIndex) => (
-                              <div 
-                                key={catIndex} 
-                                className="flex items-center justify-between py-2 px-3 rounded hover:bg-foreground/5"
-                              >
-                                <span className="font-medium">{category.name}</span>
-                                <span className="text-lg font-bold text-primary">
-                                  {category.price === 0 ? 'Free' : `$${category.price.toFixed(2)}`}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </CollapsibleContent>
-                      </div>
-                    </Collapsible>
-                  ))
-                ) : (
-                  // Single session or no sessions - show ticket categories directly
-                  <div className="glass-border rounded-lg overflow-hidden">
-                    <div className="p-4 space-y-3">
-                      {event.sessions && event.sessions[0] ? (
+                <div className="glass-border rounded-lg overflow-hidden">
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-center gap-4 pb-3 border-b border-border">
+                      {event.startDateTime && (
                         <>
-                          <div className="flex items-center gap-4 mb-4 pb-3 border-b border-border">
-                            <div className="flex items-center gap-2 text-primary">
-                              <Calendar className="w-4 h-4" />
-                              <span className="font-semibold">{event.sessions[0].date}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Clock className="w-4 h-4" />
-                              <span className="text-sm">{event.sessions[0].time}</span>
-                            </div>
+                          <div className="flex items-center gap-2 text-primary">
+                            <Calendar className="w-4 h-4" />
+                            <span className="font-semibold">
+                              {new Date(event.startDateTime).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </span>
                           </div>
-                          {event.sessions[0].ticketCategories.map((category, catIndex) => (
-                            <div 
-                              key={catIndex} 
-                              className="flex items-center justify-between py-3 px-3 rounded hover:bg-foreground/5"
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Clock className="w-4 h-4" />
+                            <span className="text-sm">
+                              {new Date(event.startDateTime).toLocaleTimeString('en-US', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                        <>
+                        </>
+                      )}
+                    </div>
+                    <div className="pt-3">
+                      <Button
+                        variant="cta"
+                        className="w-full"
+                        onClick={() => navigate(`/event/${event.eventId}/tickets`)}
+                      >
+                        Book Now
+                      </Button>
+                    </div>
+                  </div>
+                </div>
                             >
                               <div>
                                 <span className="font-medium block">{category.name}</span>
-                                <span className="text-sm text-muted-foreground">{category.description}</span>
+            {/* Organizer Card - Simplified since we don't have organizer details in BackendEvent */}
                               </div>
                               <span className="text-xl font-bold text-primary">
                                 {category.price === 0 ? 'Free' : `$${category.price.toFixed(2)}`}
                               </span>
                             </div>
-                          ))}
+                    O{event.organizerId}
                           <div className="pt-3 mt-3 border-t border-border">
-                            <Button 
-                              variant="cta" 
-                              className="w-full"
-                              onClick={() => navigate(`/event/${event.id}/tickets/0`)}
+                            <Button
+                              variant="cta"
+                  <p className="font-medium">Organizer #{event.organizerId}</p>
+                  <p className="text-sm text-muted-foreground">Event Organizer</p>
                             >
                               Book Now
                             </Button>
@@ -222,17 +222,17 @@ const EventDetail = () => {
                         </>
                       ) : (
                         event.ticketCategories.map((category, catIndex) => (
-                          <div 
-                            key={catIndex} 
+                          <div
+                            key={catIndex}
                             className="flex items-center justify-between py-3 px-3 rounded hover:bg-foreground/5"
                           >
                             <div>
                               <span className="font-medium block">{category.name}</span>
                               <span className="text-sm text-muted-foreground">{category.description}</span>
                             </div>
-                            <span className="text-xl font-bold text-primary">
-                              {category.price === 0 ? 'Free' : `$${category.price.toFixed(2)}`}
-                            </span>
+                <p className="text-sm text-muted-foreground mb-2">Event Status</p>
+                <p className="text-2xl font-bold text-primary capitalize">
+                  {event.eventStatus.toLowerCase().replace('_', ' ')}
                           </div>
                         ))
                       )}
@@ -252,7 +252,7 @@ const EventDetail = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium">{event.organizer.name}</p>
+                  onClick={() => navigate(`/event/${event.eventId}/tickets`)}
                   <p className="text-sm text-muted-foreground">{event.organizer.email}</p>
                 </div>
               </div>
