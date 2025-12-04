@@ -16,3 +16,5 @@ BEGIN
     PRINT 'Database [event-ease-db] already exists.';
 END
 GO
+
+--./mvnw flyway:repair "-Dflyway.url=jdbc:sqlserver://localhost:20000;databaseName=event-ease-db;encrypt=false;trustServerCertificate=true" "-Dflyway.user=sa" "-Dflyway.password=Database@251"
