@@ -118,23 +118,50 @@ export interface UpdateProfileRequest {
 // Event Types (Backend Structure)
 // ============================================
 
-export interface BackendEvent {
-  eventId: number;
-  title: string;
-  generalIntroduction: string;
-  startDate: string;  // ISO date
-  endDate?: string;   // ISO date
-  location: string;
-  eventStatus: EventStatus;
-  organizerId: number;
+export interface BackendTicketCategory {
+  ticketCategoryId: number;
+  sessionId: number;
+  categoryName: string;
+  price: number;
+  quantity: number;
+  soldQuantity?: number;
 }
 
 export interface BackendSession {
   sessionId: number;
+  startDateTime: string;  // ISO datetime
+  endDateTime: string;    // ISO datetime
+  maxCapacity?: number;
+  type: string;  // ONLINE or OFFLINE
+  
+  // For offline sessions
+  venueName?: string;
+  venueAddress?: string;
+  
+  // For online sessions
+  meetingUrl?: string;
+  platformName?: string;
+  
+  // Ticket categories for this session
+  ticketCategories?: BackendTicketCategory[];
+}
+
+export interface BackendEvent {
   eventId: number;
-  sessionDate: string;  // ISO date
-  startTime: string;
-  endTime: string;
+  title: string;
+  generalIntroduction: string;
+  eventStatus: EventStatus;
+  organizerId: number;
+  startDateTime?: string;  // ISO datetime
+  endDateTime?: string;    // ISO datetime
+  timestamp?: string;      // ISO datetime
+  posterUrl?: string;
+  location?: string;       // Extracted from first offline session
+  sessions: BackendSession[];  // Sessions are included in event response
+  
+  // Legacy fields for backward compatibility
+  startDate?: string;  // ISO date
+  endDate?: string;    // ISO date
 }
 
 // ============================================

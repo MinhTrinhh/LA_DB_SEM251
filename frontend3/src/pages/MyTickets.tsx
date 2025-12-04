@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -6,46 +6,77 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Ticket as TicketIcon, Settings, Bell } from "lucide-react";
 import MyTicketCard from "@/components/MyTicketCard";
-import { Ticket } from "@/data/mockEvents";
+import { ordersApi, OrderDTO } from "@/api/orders.api";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data - In production, this would come from API
-const mockTickets: Ticket[] = [
-  {
-    id: "ticket-001",
-    eventId: "1",
-    eventTitle: "Summer Music Festival 2025",
-    eventDate: "Dec 15, 2025",
-    eventTime: "6:00 PM",
-    venue: "City Park Main Stage",
-    category: "VIP",
-    quantity: 2,
-    totalPrice: 300,
-    purchaseDate: "2025-11-28",
-    qrCode: "EVENT-EASE-123456",
-    status: "valid"
-  },
-  {
-    id: "ticket-002",
-    eventId: "2",
-    eventTitle: "Digital Marketing Workshop",
-    eventDate: "Dec 8, 2025",
-    eventTime: "10:00 AM",
-    venue: "Tech Hub Conference Room",
-    category: "Free Admission",
-    quantity: 1,
-    totalPrice: 0,
-    purchaseDate: "2025-11-25",
-    qrCode: "EVENT-EASE-789012",
-    status: "valid"
-  }
-];
+// Convert OrderDTO to Ticket format for MyTicketCard
+interface Ticket {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  eventTime: string;
+  venue: string;
+  category: string;
+  quantity: number;
+  totalPrice: number;
+  purchaseDate: string;
+  qrCode: string;
+  status: "valid" | "used";
+}
+
+const convertOrderToTicket = (order: OrderDTO): Ticket => {
+  return {
+    id: order.orderId.toString(),
+    eventId: order.event?.eventId?.toString() || "0",
+    eventTitle: order.event?.title || "Event",
+    eventDate: order.event?.startDateTime 
+      ? new Date(order.event.startDateTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : "TBD",
+    eventTime: order.event?.startDateTime 
+      ? new Date(order.event.startDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : "TBD",
+    venue: order.event?.location || "Online Event",
+    category: order.tickets[0]?.ticketCategory?.name || "General Admission",
+    quantity: order.tickets.length,
+    totalPrice: order.amountOfMoney,
+    purchaseDate: new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    qrCode: order.tickets[0]?.qrCodeUrl || "",
+    status: order.orderStatus === "PENDING" ? "valid" : "used"
+  };
+};
 
 const MyTickets = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("my-tickets");
+  const [orders, setOrders] = useState<OrderDTO[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const upcomingTickets = mockTickets.filter(ticket => ticket.status === 'valid');
-  const pastTickets = mockTickets.filter(ticket => ticket.status === 'used');
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const ordersData = await ordersApi.getMyOrders();
+        setOrders(ordersData);
+      } catch (error: any) {
+        console.error('Error fetching orders:', error);
+        toast({
+          title: "Failed to load tickets",
+          description: error.response?.data?.message || "Unable to fetch your tickets",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [toast]);
+
+  const tickets = orders.map(convertOrderToTicket);
+  const upcomingTickets = tickets.filter(ticket => ticket.status === 'valid');
+  const pastTickets = tickets.filter(ticket => ticket.status === 'used');
 
   // Handle tab change - redirect to profile page if profile tab clicked
   const handleTabChange = (value: string) => {
@@ -92,7 +123,11 @@ const MyTickets = () => {
             <div>
               <h2 className="text-2xl font-bold mb-6">Upcoming Events</h2>
               
-              {upcomingTickets.length > 0 ? (
+              {loading ? (
+                <div className="glass glass-border rounded-xl p-12 text-center">
+                  <p className="text-muted-foreground">Loading your tickets...</p>
+                </div>
+              ) : upcomingTickets.length > 0 ? (
                 <div className="space-y-4">
                   {upcomingTickets.map((ticket) => (
                     <MyTicketCard key={ticket.id} ticket={ticket} />

@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { eventsApi, CreateEventRequest } from "@/api/events.api";
 
 const CreateEvent = () => {
   const [step, setStep] = useState(1);
@@ -51,12 +52,79 @@ const CreateEvent = () => {
     }
   };
 
-  const handlePublish = () => {
-    toast({
-      title: "Event Published!",
-      description: "Your event has been created successfully.",
-    });
-    navigate('/organize');
+  const handlePublish = async () => {
+    try {
+      // Validate required fields
+      if (!formData.title || !formData.description || !formData.venue || !formData.location) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required fields.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate sessions
+      for (const session of formData.sessions) {
+        if (!session.startDate || !session.startTime || !session.endDate || !session.endTime) {
+          toast({
+            title: "Validation Error",
+            description: "Please complete all session date and time fields.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Validate ticket categories
+        for (const category of session.ticketCategories) {
+          if (!category.name || category.quantity <= 0) {
+            toast({
+              title: "Validation Error",
+              description: "Please complete all ticket category details.",
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+      }
+
+      // Prepare the request payload
+      const request: CreateEventRequest = {
+        title: formData.title,
+        description: formData.description,
+        posterUrl: formData.image ? URL.createObjectURL(formData.image) : undefined,
+        venueName: formData.venue,
+        venueAddress: formData.location,
+        regulations: [],
+        sessions: formData.sessions.map(session => ({
+          startDateTime: `${format(session.startDate!, "yyyy-MM-dd")}T${session.startTime}:00`,
+          endDateTime: `${format(session.endDate!, "yyyy-MM-dd")}T${session.endTime}:00`,
+          venueName: formData.venue,
+          venueAddress: formData.location,
+          ticketCategories: session.ticketCategories.map(cat => ({
+            categoryName: cat.name,
+            price: cat.price,
+            quantity: cat.quantity,
+          })),
+        })),
+      };
+
+      // Call the API
+      const response = await eventsApi.createEvent(request);
+
+      toast({
+        title: "Event Created!",
+        description: response.message,
+      });
+      
+      navigate('/organize');
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to create event. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const addTicketCategory = (sessionIndex: number) => {

@@ -9,16 +9,21 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar, MapPin, Clock, ArrowLeft, CreditCard, Wallet } from "lucide-react";
-import { Event, Session, SelectedTickets } from "@/data/mockEvents";
+import { BackendEvent, BackendSession } from "@/types/api.types";
 import { useToast } from "@/hooks/use-toast";
+import { ordersApi } from "@/api/orders.api";
+
+interface SelectedTickets {
+  [ticketCategoryId: number]: number;
+}
 
 interface CheckoutState {
   selectedTickets: SelectedTickets;
   totalAmount: number;
   totalTickets: number;
-  session: Session;
-  event: Event;
-  sessionIndex: number;
+  sessionId: number;
+  session: BackendSession;
+  event: BackendEvent;
 }
 
 const Checkout = () => {
@@ -86,18 +91,27 @@ const Checkout = () => {
 
     setIsProcessing(true);
 
-    // Simulate payment processing
-    setTimeout(() => {
-      const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-      
+    try {
+      // Create order via API
+      const orderData = await ordersApi.createOrder({
+        eventId: event.eventId,
+        sessionId: state.sessionId,
+        ticketQuantities: selectedTickets,
+        currency: "USD",
+        paymentMethod: formData.paymentMethod
+      });
+
+      toast({
+        title: "Order created successfully!",
+        description: `Order ID: ${orderData.orderId}`,
+      });
+
+      // Navigate to confirmation page with order data
       navigate("/confirmation", {
         state: {
-          orderId,
+          order: orderData,
           event,
           session,
-          selectedTickets,
-          totalAmount,
-          totalTickets,
           customerInfo: {
             name: formData.name,
             email: formData.email,
@@ -105,7 +119,15 @@ const Checkout = () => {
           }
         }
       });
-    }, 2000);
+    } catch (error: any) {
+      console.error('Error creating order:', error);
+      toast({
+        title: "Order failed",
+        description: error.response?.data?.message || "Failed to create order. Please try again.",
+        variant: "destructive"
+      });
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -116,7 +138,7 @@ const Checkout = () => {
       <div className="glass-dark border-b border-border">
         <div className="container mx-auto px-4 py-4">
           <Link
-            to={`/event/${event.id}/tickets/0`}
+            to={`/events/${event.eventId}/tickets/0`}
             className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -232,15 +254,15 @@ const Checkout = () => {
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-primary" />
-                    <span>{session.date}</span>
+                    <span>{new Date(session.startDateTime).toLocaleDateString()}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-primary" />
-                    <span>{session.time}</span>
+                    <span>{new Date(session.startDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-primary" />
-                    <span>{event.venue}</span>
+                    <span>{session.venueName || event.location || 'Online Event'}</span>
                   </div>
                 </div>
               </div>
@@ -249,14 +271,15 @@ const Checkout = () => {
 
               {/* Ticket Breakdown */}
               <div className="space-y-2 mb-4">
-                {Object.entries(selectedTickets).map(([category, quantity]) => {
+                {Object.entries(selectedTickets).map(([categoryIdStr, quantity]) => {
                   if (quantity === 0) return null;
-                  const ticketCategory = session.ticketCategories?.find(tc => tc.name === category);
+                  const categoryId = Number(categoryIdStr);
+                  const ticketCategory = session.ticketCategories?.find(tc => tc.ticketCategoryId === categoryId);
                   const price = ticketCategory?.price || 0;
                   return (
-                    <div key={category} className="flex justify-between items-center text-sm">
+                    <div key={categoryId} className="flex justify-between items-center text-sm">
                       <span className="text-muted-foreground">
-                        {category} × {quantity}
+                        {ticketCategory?.categoryName} × {quantity}
                       </span>
                       <span className="font-semibold">
                         {price === 0 ? 'Free' : `$${(price * quantity).toFixed(2)}`}

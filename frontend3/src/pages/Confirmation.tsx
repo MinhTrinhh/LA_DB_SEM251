@@ -6,16 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Download, Share2, Calendar as CalendarIcon, Mail, MapPin, Clock } from "lucide-react";
-import { Event, Session, SelectedTickets } from "@/data/mockEvents";
+import { BackendEvent, BackendSession } from "@/types/api.types";
+import { OrderDTO } from "@/api/orders.api";
 import QRCode from "qrcode";
 
 interface ConfirmationState {
-  orderId: string;
-  event: Event;
-  session: Session;
-  selectedTickets: SelectedTickets;
-  totalAmount: number;
-  totalTickets: number;
+  order: OrderDTO;
+  event: BackendEvent;
+  session: BackendSession;
   customerInfo: {
     name: string;
     email: string;
@@ -29,8 +27,8 @@ const Confirmation = () => {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
 
   useEffect(() => {
-    if (state?.orderId) {
-      QRCode.toDataURL(`EVENT-EASE-${state.orderId}`, {
+    if (state?.order?.orderId) {
+      QRCode.toDataURL(`EVENT-EASE-ORDER-${state.order.orderId}`, {
         width: 300,
         margin: 2,
         color: {
@@ -39,9 +37,9 @@ const Confirmation = () => {
         },
       }).then(setQrCodeUrl);
     }
-  }, [state?.orderId]);
+  }, [state?.order?.orderId]);
 
-  if (!state || !state.orderId || !state.event) {
+  if (!state || !state.order || !state.event) {
     return (
       <div className="min-h-screen">
         <Header />
@@ -56,7 +54,7 @@ const Confirmation = () => {
     );
   }
 
-  const { orderId, event, session, selectedTickets, totalAmount, customerInfo } = state;
+  const { order, event, session, customerInfo } = state;
 
   const handleDownloadTicket = () => {
     // In production, this would generate a PDF
@@ -107,11 +105,11 @@ const Confirmation = () => {
                   <div className="flex flex-wrap gap-4 text-sm text-white/90">
                     <div className="flex items-center gap-2">
                       <CalendarIcon className="w-4 h-4" />
-                      <span>{session.date}</span>
+                      <span>{new Date(session.startDateTime).toLocaleDateString()}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
-                      <span>{session.time}</span>
+                      <span>{new Date(session.startDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
                 </div>
@@ -124,7 +122,7 @@ const Confirmation = () => {
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-sm text-muted-foreground mb-2 uppercase tracking-wide">Order ID</h3>
-                    <p className="text-xl font-mono font-bold">{orderId}</p>
+                    <p className="text-xl font-mono font-bold">{order.orderId}</p>
                   </div>
 
                   <div>
@@ -132,8 +130,8 @@ const Confirmation = () => {
                     <div className="flex items-start gap-2">
                       <MapPin className="w-5 h-5 text-primary mt-1 shrink-0" />
                       <div>
-                        <p className="font-medium">{event.venue}</p>
-                        <p className="text-sm text-muted-foreground">{event.location}</p>
+                        <p className="font-medium">{session.venueName || event.location || 'Online Event'}</p>
+                        <p className="text-sm text-muted-foreground">{session.venueAddress || 'Virtual Event'}</p>
                       </div>
                     </div>
                   </div>
@@ -150,19 +148,14 @@ const Confirmation = () => {
                   <div>
                     <h3 className="text-sm text-muted-foreground mb-3 uppercase tracking-wide">Tickets</h3>
                     <div className="space-y-2">
-                      {Object.entries(selectedTickets).map(([category, quantity]) => {
-                        if (quantity === 0) return null;
-                        const ticketCategory = session.ticketCategories?.find(tc => tc.name === category);
-                        const price = ticketCategory?.price || 0;
-                        return (
-                          <div key={category} className="flex justify-between items-center">
-                            <span className="text-muted-foreground">{category} × {quantity}</span>
-                            <span className="font-semibold">
-                              {price === 0 ? 'Free' : `$${(price * quantity).toFixed(2)}`}
-                            </span>
-                          </div>
-                        );
-                      })}
+                      {order.tickets.map((ticket) => (
+                        <div key={ticket.ticketId} className="flex justify-between items-center">
+                          <span className="text-muted-foreground">{ticket.ticketCategory.name}</span>
+                          <span className="font-semibold">
+                            {ticket.ticketCategory.price === 0 ? 'Free' : `$${ticket.ticketCategory.price.toFixed(2)}`}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -171,7 +164,7 @@ const Confirmation = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-xl font-semibold">Total</span>
                     <span className="text-3xl font-bold text-primary">
-                      {totalAmount === 0 ? 'Free' : `$${totalAmount.toFixed(2)}`}
+                      {order.amountOfMoney === 0 ? 'Free' : `$${order.amountOfMoney.toFixed(2)}`}
                     </span>
                   </div>
                 </div>
@@ -199,15 +192,15 @@ const Confirmation = () => {
 
             <div className="p-6 bg-card">
               <div className="flex flex-wrap gap-4 justify-between items-center text-sm text-muted-foreground">
-                <div>Order #{orderId}</div>
+                <div>Order #{order.orderId}</div>
                 <div>
-                  Purchase Date: {new Date().toLocaleDateString('en-US', {
+                  Purchase Date: {new Date(order.createdAt).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric'
                   })}
                 </div>
-                <div>Status: <span className="text-green-500 font-semibold">Confirmed</span></div>
+                <div>Status: <span className="text-green-500 font-semibold">{order.orderStatus}</span></div>
               </div>
             </div>
           </Card>
