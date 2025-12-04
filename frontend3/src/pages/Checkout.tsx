@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import PaymentQRModal from "@/components/PaymentQRModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar, MapPin, Clock, ArrowLeft, CreditCard, Wallet } from "lucide-react";
 import { BackendEvent, BackendSession } from "@/types/api.types";
 import { useToast } from "@/hooks/use-toast";
-import { ordersApi } from "@/api/orders.api";
+import { ordersApi, OrderDTO } from "@/api/orders.api";
+import { formatVND } from "@/utils/currency";
 
 interface SelectedTickets {
   [ticketCategoryId: number]: number;
@@ -40,6 +42,8 @@ const Checkout = () => {
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [currentOrder, setCurrentOrder] = useState<OrderDTO | null>(null);
 
   useEffect(() => {
     if (!state || !state.selectedTickets || !state.event) {
@@ -97,8 +101,8 @@ const Checkout = () => {
         eventId: event.eventId,
         sessionId: state.sessionId,
         ticketQuantities: selectedTickets,
-        currency: "USD",
-        paymentMethod: formData.paymentMethod
+        currency: "VND",
+        paymentMethodId: 6 // MB Bank - default payment method
       });
 
       toast({
@@ -106,19 +110,27 @@ const Checkout = () => {
         description: `Order ID: ${orderData.orderId}`,
       });
 
-      // Navigate to confirmation page with order data
-      navigate("/confirmation", {
-        state: {
-          order: orderData,
-          event,
-          session,
-          customerInfo: {
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone
+      // Store order data and show QR modal if payment is required
+      setCurrentOrder(orderData);
+
+      if (orderData.amountOfMoney > 0 && orderData.qrCodeUrl) {
+        // Show QR code modal for payment
+        setShowQRModal(true);
+      } else {
+        // Free ticket, navigate directly to confirmation
+        navigate("/confirmation", {
+          state: {
+            order: orderData,
+            event,
+            session,
+            customerInfo: {
+              name: formData.name,
+              email: formData.email,
+              phone: formData.phone
+            }
           }
-        }
-      });
+        });
+      }
     } catch (error: any) {
       console.error('Error creating order:', error);
       toast({
@@ -282,7 +294,7 @@ const Checkout = () => {
                         {ticketCategory?.categoryName} × {quantity}
                       </span>
                       <span className="font-semibold">
-                        {price === 0 ? 'Free' : `$${(price * quantity).toFixed(2)}`}
+                        {price === 0 ? 'Free' : formatVND(price * quantity)}
                       </span>
                     </div>
                   );
@@ -295,7 +307,7 @@ const Checkout = () => {
               <div className="flex justify-between items-center mb-6">
                 <span className="text-lg font-semibold">Total</span>
                 <span className="text-2xl font-bold text-primary">
-                  {totalAmount === 0 ? 'Free' : `$${totalAmount.toFixed(2)}`}
+                  {totalAmount === 0 ? 'Free' : formatVND(totalAmount)}
                 </span>
               </div>
 
@@ -316,6 +328,30 @@ const Checkout = () => {
           </div>
         </form>
       </main>
+
+      {/* Payment QR Code Modal */}
+      {currentOrder && (
+        <PaymentQRModal
+          open={showQRModal}
+          onClose={() => {
+            setShowQRModal(false);
+            // Navigate to confirmation page after closing modal
+            navigate("/confirmation", {
+              state: {
+                order: currentOrder,
+                event,
+                session,
+                customerInfo: {
+                  name: formData.name,
+                  email: formData.email,
+                  phone: formData.phone
+                }
+              }
+            });
+          }}
+          order={currentOrder}
+        />
+      )}
 
       <Footer />
     </div>

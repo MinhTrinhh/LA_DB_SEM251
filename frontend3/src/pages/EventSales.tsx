@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { salesApi, EventSalesSummaryDTO } from "@/api/sales.api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { formatVND } from "@/utils/currency";
 
 const EventSales = () => {
   const { id } = useParams();
@@ -202,7 +203,7 @@ const EventSales = () => {
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-lg text-cta">
-                          ${category.revenue?.toLocaleString() || '0'}
+                          {formatVND(category.revenue || 0)}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {percentage.toFixed(1)}% sold
@@ -284,7 +285,7 @@ const EventSales = () => {
                     <TableCell>{order.ticketCategory}</TableCell>
                     <TableCell className="text-center">{order.quantity}</TableCell>
                     <TableCell className="text-right font-bold text-cta">
-                      ${order.amount?.toLocaleString() || '0'}
+                      {formatVND(order.amount || 0)}
                     </TableCell>
                     <TableCell>
                       {new Date(order.purchaseDate).toLocaleDateString('en-US', {

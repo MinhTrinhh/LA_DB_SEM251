@@ -15,7 +15,6 @@ import org.minhtrinh.eventease251.entity.OnlineSession;
 import org.minhtrinh.eventease251.entity.OfflineSession;
 import org.minhtrinh.eventease251.entity.TicketCategory;
 import org.minhtrinh.eventease251.repository.EventRepository;
-import org.minhtrinh.eventease251.repository.EventRepositoryCustomImpl;
 import org.minhtrinh.eventease251.repository.SessionRepository;
 import org.minhtrinh.eventease251.repository.UserRepository;
 import org.minhtrinh.eventease251.repository.TicketCategoryRepository;
@@ -30,7 +29,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class EventService {
 
-    private final EventRepositoryCustomImpl eventRepositoryCustom;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
@@ -62,7 +60,7 @@ public class EventService {
         }
         
         // Create the event using JDBC Template
-        Long eventId = eventRepositoryCustom.createEvent(request, organizerId);
+        Long eventId = eventRepository.createEvent(request, organizerId);
         
         log.info("Event created successfully with ID: {}", eventId);
         

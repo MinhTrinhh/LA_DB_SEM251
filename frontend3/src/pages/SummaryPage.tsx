@@ -3,8 +3,9 @@ import { ArrowLeft, DollarSign, Users, Ticket, TrendingUp, Calendar } from 'luci
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { OrganizerPanel } from '@/components/OrganizerPanel';
-import { Button } from '@/components/ui/button';
-import { mockEvents } from '@/data/mockEvents';
+import { Button } from "@/components/ui/button";
+import { mockEvents } from "@/data/mockEvents";
+import { formatVND } from "@/utils/currency";
 
 export default function SummaryPage() {
   const { id } = useParams();
@@ -32,7 +33,7 @@ export default function SummaryPage() {
   const revenue = event.ticketCategories?.reduce((sum, cat) => sum + (cat.total - cat.available) * cat.price, 0) || 0;
 
   const stats = [
-    { label: 'Total Revenue', value: `$${revenue.toLocaleString()}`, icon: DollarSign, color: 'text-green-400' },
+    { label: 'Total Revenue', value: formatVND(revenue), icon: DollarSign, color: 'text-green-400' },
     { label: 'Tickets Sold', value: soldTickets.toString(), icon: Ticket, color: 'text-primary' },
     { label: 'Total Attendees', value: soldTickets.toString(), icon: Users, color: 'text-blue-400' },
     { label: 'Growth Rate', value: '+23%', icon: TrendingUp, color: 'text-pink-400' },

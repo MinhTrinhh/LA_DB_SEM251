@@ -9,6 +9,7 @@ import { CheckCircle, Download, Share2, Calendar as CalendarIcon, Mail, MapPin, 
 import { BackendEvent, BackendSession } from "@/types/api.types";
 import { OrderDTO } from "@/api/orders.api";
 import QRCode from "qrcode";
+import { formatVND } from "@/utils/currency";
 
 interface ConfirmationState {
   order: OrderDTO;
@@ -152,7 +153,7 @@ const Confirmation = () => {
                         <div key={ticket.ticketId} className="flex justify-between items-center">
                           <span className="text-muted-foreground">{ticket.ticketCategory.name}</span>
                           <span className="font-semibold">
-                            {ticket.ticketCategory.price === 0 ? 'Free' : `$${ticket.ticketCategory.price.toFixed(2)}`}
+                            {ticket.ticketCategory.price === 0 ? 'Free' : formatVND(ticket.ticketCategory.price)}
                           </span>
                         </div>
                       ))}
@@ -164,7 +165,7 @@ const Confirmation = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-xl font-semibold">Total</span>
                     <span className="text-3xl font-bold text-primary">
-                      {order.amountOfMoney === 0 ? 'Free' : `$${order.amountOfMoney.toFixed(2)}`}
+                      {order.amountOfMoney === 0 ? 'Free' : formatVND(order.amountOfMoney)}
                     </span>
                   </div>
                 </div>

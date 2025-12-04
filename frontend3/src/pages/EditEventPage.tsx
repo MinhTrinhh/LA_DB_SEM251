@@ -14,6 +14,7 @@ import {
   editEventApi, 
   EventEditDetailsDTO
 } from '@/api/editEvent.api';
+import { formatVND } from '@/utils/currency';
 
 interface LocalTicketCategory {
   categoryId?: number;
@@ -317,7 +318,7 @@ export default function EditEventPage() {
             </div>
             <div className="glass glass-border rounded-lg p-4">
               <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <p className="text-lg font-semibold">${event.totalRevenue?.toFixed(2) || '0.00'}</p>
+              <p className="text-lg font-semibold">{formatVND(event.totalRevenue || 0)}</p>
             </div>
             <div className="glass glass-border rounded-lg p-4">
               <p className="text-sm text-muted-foreground">Tickets Sold</p>

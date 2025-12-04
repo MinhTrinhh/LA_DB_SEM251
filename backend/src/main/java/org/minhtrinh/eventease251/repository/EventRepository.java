@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface EventRepository extends JpaRepository<Event, Long> {
+public interface EventRepository extends JpaRepository<Event, Long>, EventRepositoryCustom {
     List<Event> findByOrganizerProfile_User_UserId(Long organizerId);
     List<Event> findByOrganizerProfile_User_UserIdAndEventStatus(Long organizerId, EventStatus eventStatus);
 }
