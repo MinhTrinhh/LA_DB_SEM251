@@ -18,6 +18,7 @@ import ParticipantProfile from "./pages/ParticipantProfile";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
 import OrganizerProfile from "./pages/OrganizerProfile";
 import CreateEvent from "./pages/CreateEvent";
+import DraftEvents from "./pages/DraftEvents";
 import EditEventPage from "./pages/EditEventPage";
 import CheckInReportPage from "./pages/CheckInReportPage";
 import SummaryPage from "./pages/SummaryPage";
@@ -97,6 +98,11 @@ const App = () => (
             <Route path="/organize/create" element={
               <ProtectedRoute requireRole="ROLE_ORGANIZER">
                 <CreateEvent />
+              </ProtectedRoute>
+            } />
+            <Route path="/organize/drafts" element={
+              <ProtectedRoute requireRole="ROLE_ORGANIZER">
+                <DraftEvents />
               </ProtectedRoute>
             } />
             <Route path="/organize/event/:id/edit" element={
