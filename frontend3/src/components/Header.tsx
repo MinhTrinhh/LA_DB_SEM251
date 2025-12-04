@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,6 +58,7 @@ const Header = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             {isAuthenticated ? (
               <>
                 {/* User Dropdown Menu */}

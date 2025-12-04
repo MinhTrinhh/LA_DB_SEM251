@@ -11,36 +11,37 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 258 83% 7%;
-    --foreground: 0 0% 100%;
+    /* Light Mode (Default) */
+    --background: 240 20% 95%;
+    --foreground: 240 20% 15%;
 
-    --card: 258 50% 15%;
-    --card-foreground: 0 0% 100%;
+    --card: 240 20% 98%;
+    --card-foreground: 240 20% 15%;
 
-    --popover: 258 50% 15%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 240 20% 98%;
+    --popover-foreground: 240 20% 15%;
 
-    --primary: 243 75% 60%;
+    --primary: 200 75% 55%;
     --primary-foreground: 0 0% 100%;
 
     --cta: 54 92% 56%;
-    --cta-foreground: 258 83% 7%;
+    --cta-foreground: 240 20% 15%;
 
-    --secondary: 0 0% 20%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 240 20% 85%;
+    --secondary-foreground: 240 20% 15%;
 
-    --muted: 258 20% 40%;
-    --muted-foreground: 0 0% 70%;
+    --muted: 240 15% 75%;
+    --muted-foreground: 240 20% 40%;
 
-    --accent: 270 50% 30%;
+    --accent: 200 50% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 100% / 0.15;
-    --input: 0 0% 100% / 0.08;
-    --ring: 243 75% 60%;
+    --border: 240 20% 80%;
+    --input: 240 20% 90%;
+    --ring: 200 75% 60%;
 
     --radius: 0.75rem;
 
@@ -97,6 +98,26 @@ All colors MUST be HSL.
     --tracking-normal: 0em;
 
     --spacing: 0.25rem;
+
+    /* Light Mode Background Gradient Options - Uncomment the one you prefer */
+    
+    /* Current: Blue-based gradient */
+    /* --bg-gradient: radial-gradient(ellipse at center, hsl(240 40% 93%) 0%, hsl(243 50% 82%) 100%); */
+    
+    /* Option 1: Purple/Violet - Modern and elegant */
+    /* --bg-gradient: radial-gradient(ellipse at center, hsl(260 40% 93%) 0%, hsl(270 50% 75%) 100%); */
+    
+    /* Option 2: Warm Orange/Peach - Warm and inviting */
+    /* --bg-gradient: radial-gradient(ellipse at center, hsl(40 40% 94%) 0%, hsl(20 60% 80%) 100%); */
+    
+    /* Option 3: Cool Cyan/Turquoise - Fresh and modern */
+    --bg-gradient: radial-gradient(ellipse at center, hsl(180 40% 93%) 0%, hsl(200 60% 75%) 100%);
+    
+    /* Option 4: Rose/Pink - Modern and trendy */
+    /* --bg-gradient: radial-gradient(ellipse at center, hsl(330 40% 93%) 0%, hsl(340 70% 78%) 100%); */
+    
+    /* Option 5: Neutral Gray - Minimalist and professional */
+    /* --bg-gradient: radial-gradient(ellipse at center, hsl(0 0% 95%) 0%, hsl(240 10% 82%) 100%); */
   }
 
   .dark {
@@ -152,6 +173,9 @@ All colors MUST be HSL.
     --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
     --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+
+    /* Dark Mode Background Gradient */
+    --bg-gradient: radial-gradient(ellipse at center, hsl(270 50% 25%) 0%, hsl(258 83% 5%) 100%);
   }
 }
 
@@ -162,7 +186,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground font-sans;
-    background: radial-gradient(ellipse at center, hsl(270 50% 25%) 0%, hsl(258 83% 5%) 100%);
+    background: var(--bg-gradient);
     background-attachment: fixed;
   }
 }
