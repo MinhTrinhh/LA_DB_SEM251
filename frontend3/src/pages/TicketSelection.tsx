@@ -176,12 +176,20 @@ const TicketSelection = () => {
 
             <div className="space-y-3">
               {session.ticketCategories && session.ticketCategories.map((category) => {
-                const available = category.quantity - (category.soldQuantity || 0);
+                const available = category.quantity;
+                const isSoldOut = available === 0;
                 return (
-                  <Card key={category.ticketCategoryId} className="p-4">
+                  <Card key={category.ticketCategoryId} className={`p-4 ${isSoldOut ? 'opacity-60' : ''}`}>
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 pr-4">
-                        <h3 className="font-semibold mb-1">{category.categoryName}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold mb-1">{category.categoryName}</h3>
+                          {isSoldOut && (
+                            <span className="text-xs font-semibold px-2 py-1 rounded bg-red-500/20 text-red-500">
+                              SOLD OUT
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground">Ticket for {event.title}</p>
                       </div>
                       <div className="text-right shrink-0">
@@ -195,7 +203,7 @@ const TicketSelection = () => {
 
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">
-                        {available} available
+                        {isSoldOut ? 'Sold out' : `${available} available`}
                       </span>
                       <div className="flex items-center gap-2">
                         <Button
@@ -214,7 +222,7 @@ const TicketSelection = () => {
                           size="icon"
                           variant="outline"
                           onClick={() => updateTicketQuantity(category.ticketCategoryId, 1)}
-                          disabled={available === 0}
+                          disabled={isSoldOut || (selectedTickets[category.ticketCategoryId] || 0) >= available}
                           className="h-8 w-8"
                         >
                           <Plus className="w-4 h-4" />

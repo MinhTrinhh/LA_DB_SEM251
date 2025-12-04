@@ -139,6 +139,24 @@ public class OrderService {
         List<Ticket> savedTickets = ticketRepository.saveAll(tickets);
         log.info("OrderService: Created {} tickets for order {}", savedTickets.size(), savedOrder.getOrderId());
         
+        // Decrease ticket availability for each category
+        for (Map.Entry<Long, Integer> entry : request.getTicketQuantities().entrySet()) {
+            Long categoryId = entry.getKey();
+            Integer quantity = entry.getValue();
+            
+            TicketCategory category = ticketCategories.stream()
+                    .filter(c -> c.getCategoryId().equals(categoryId))
+                    .findFirst()
+                    .orElseThrow();
+            
+            // Decrease available tickets
+            category.setMaximumSlot(category.getMaximumSlot() - quantity);
+            ticketCategoryRepository.save(category);
+            
+            log.info("OrderService: Decreased {} tickets from category {} (ID: {}). Remaining: {}", 
+                    quantity, category.getCategoryName(), categoryId, category.getMaximumSlot());
+        }
+        
         // Convert to DTO
         return convertToOrderDTO(savedOrder, savedTickets);
     }
