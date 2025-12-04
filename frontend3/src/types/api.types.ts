@@ -122,11 +122,16 @@ export interface BackendEvent {
   eventId: number;
   title: string;
   generalIntroduction: string;
-  startDate: string;  // ISO date
-  endDate?: string;   // ISO date
-  location: string;
   eventStatus: EventStatus;
   organizerId: number;
+  startDateTime?: string;  // ISO datetime
+  endDateTime?: string;    // ISO datetime
+  timestamp?: string;      // ISO datetime
+  posterUrl?: string;
+  // Legacy fields for backward compatibility
+  startDate?: string;  // ISO date
+  endDate?: string;    // ISO date
+  location?: string;
 }
 
 export interface BackendSession {

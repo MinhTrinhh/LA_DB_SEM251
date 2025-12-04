@@ -1,28 +1,69 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import StatsCard from "@/components/StatsCard";
 import EventManagementCard from "@/components/EventManagementCard";
 import { Button } from "@/components/ui/button";
-import { Calendar, DollarSign, Users, TrendingUp, Plus, Settings } from "lucide-react";
-import { mockEvents } from "@/data/mockEvents";
+import { Calendar, DollarSign, Users, TrendingUp, Plus, Settings, FileText, Loader2 } from "lucide-react";
 import { mockOrganizerStats, mockSalesData } from "@/data/mockOrganizer";
 import { Link } from "react-router-dom";
+import { eventsApi } from "@/api/events.api";
+import { BackendEvent, EventStatus } from "@/types/api.types";
+import { Event } from "@/data/mockEvents";
 
 const OrganizerDashboard = () => {
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all');
+  const [myEvents, setMyEvents] = useState<BackendEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Filter events based on current user (in real app, would filter by organizerId)
-  const myEvents = mockEvents.filter(event => ['1', '2', '3'].includes(event.id));
-  
+  useEffect(() => {
+    const fetchMyEvents = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const events = await eventsApi.getMyEvents();
+        setMyEvents(events);
+      } catch (err: any) {
+        console.error('Failed to fetch events:', err);
+        setError(err.response?.data?.message || 'Failed to load your events');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMyEvents();
+  }, []);
+
+  // Convert BackendEvent to Event format for EventManagementCard
+  const convertToEvent = (backendEvent: BackendEvent): Event => {
+    return {
+      id: backendEvent.eventId.toString(),
+      title: backendEvent.title,
+      date: backendEvent.startDateTime || backendEvent.startDate || '',
+      location: backendEvent.location || 'TBA',
+      price: 0,
+      category: 'Event',
+      image: backendEvent.posterUrl || '/placeholder.svg',
+      isFeatured: false,
+      description: backendEvent.generalIntroduction
+    };
+  };
+
+  // Filter events based on date and exclude drafts
   const filteredEvents = myEvents.filter(event => {
-    const eventDate = new Date(event.date);
+    // Filter out drafts
+    if (event.eventStatus === EventStatus.DRAFT) {
+      return false;
+    }
+
+    const eventDate = event.startDateTime ? new Date(event.startDateTime) : null;
     const now = new Date();
     
-    if (filter === 'upcoming') return eventDate > now;
-    if (filter === 'past') return eventDate <= now;
+    if (filter === 'upcoming' && eventDate) return eventDate > now;
+    if (filter === 'past' && eventDate) return eventDate <= now;
     return true;
-  });
+  }).map(convertToEvent);
 
   return (
     <div className="min-h-screen">
@@ -37,6 +78,12 @@ const OrganizerDashboard = () => {
           </div>
           <div className="flex gap-3">
             <Button size="lg" variant="outline" className="gap-2" asChild>
+              <Link to="/organize/drafts">
+                <FileText className="w-5 h-5" />
+                Drafts
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" className="gap-2" asChild>
               <Link to="/organizer/profile">
                 <Settings className="w-5 h-5" />
                 Profile Settings
@@ -50,6 +97,25 @@ const OrganizerDashboard = () => {
             </Button>
           </div>
         </div>
+
+        {loading && (
+          <div className="text-center py-20">
+            <Loader2 className="w-16 h-16 mx-auto mb-4 text-primary animate-spin" />
+            <h2 className="text-2xl font-bold mb-2">Loading your events...</h2>
+            <p className="text-muted-foreground">Please wait</p>
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="text-center py-20">
+            <h2 className="text-2xl font-bold mb-2 text-destructive">Error Loading Events</h2>
+            <p className="text-muted-foreground mb-6">{error}</p>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -142,6 +208,8 @@ const OrganizerDashboard = () => {
             )}
           </div>
         </div>
+        </>
+        )}
       </main>
 
       <Footer />

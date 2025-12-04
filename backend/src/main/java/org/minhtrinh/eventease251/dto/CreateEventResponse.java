@@ -7,7 +7,8 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ErrorResponse {
+public class CreateEventResponse {
+    private Long eventId;
+    private String title;
     private String message;
 }
-

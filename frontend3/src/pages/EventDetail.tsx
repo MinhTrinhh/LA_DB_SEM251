@@ -2,24 +2,73 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, Heart, Share2, Mail, ChevronDown } from "lucide-react";
-import { mockEvents } from "@/data/mockEvents";
+import { Calendar, Clock, MapPin, Heart, Share2, Mail, ChevronDown, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { eventsApi } from "@/api/events.api";
+import { BackendEvent } from "@/types/api.types";
 
 const EventDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const event = mockEvents.find(e => e.id === id);
+  const [event, setEvent] = useState<BackendEvent | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [openSessions, setOpenSessions] = useState<number[]>([]);
 
-  if (!event) {
+  useEffect(() => {
+    const fetchEvent = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const eventData = await eventsApi.getEventById(parseInt(id));
+        setEvent(eventData);
+      } catch (err) {
+        console.error('Failed to fetch event:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load event details';
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvent();
+  }, [id]);
+
+  const toggleSession = (index: number) => {
+    setOpenSessions(prev => 
+      prev.includes(index) 
+        ? prev.filter(i => i !== index)
+        : [...prev, index]
+    );
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen">
         <Header />
         <div className="container mx-auto px-4 py-20 text-center">
-          <h1 className="text-4xl font-bold mb-4">Event Not Found</h1>
+          <Loader2 className="w-16 h-16 mx-auto mb-4 text-primary animate-spin" />
+          <h1 className="text-2xl font-bold mb-2">Loading event details...</h1>
+          <p className="text-muted-foreground">Please wait</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !event) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <div className="container mx-auto px-4 py-20 text-center">
+          <h1 className="text-4xl font-bold mb-4 text-destructive">
+            {error ? 'Error Loading Event' : 'Event Not Found'}
+          </h1>
+          <p className="text-muted-foreground mb-6">{error || 'The event you are looking for does not exist'}</p>
           <Button asChild>
             <Link to="/">Back to Events</Link>
           </Button>
@@ -29,15 +78,7 @@ const EventDetail = () => {
     );
   }
 
-  const hasMultipleSessions = event.sessions && event.sessions.length > 1;
-  
-  const toggleSession = (index: number) => {
-    setOpenSessions(prev => 
-      prev.includes(index) 
-        ? prev.filter(i => i !== index)
-        : [...prev, index]
-    );
-  };
+  const hasMultipleSessions = false; // Can be expanded later
 
   return (
     <div className="min-h-screen">
@@ -47,7 +88,7 @@ const EventDetail = () => {
         {/* Hero Section */}
         <div className="relative h-[60vh] rounded-2xl overflow-hidden mb-8">
           <img
-            src={event.image}
+            src={event.posterUrl || '/placeholder.svg'}
             alt={event.title}
             className="w-full h-full object-cover"
           />
@@ -77,11 +118,14 @@ const EventDetail = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Date</p>
                     <p className="font-medium">
-                      {new Date(event.date).toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
+                      {event.startDateTime || event.startDate
+                        ? new Date(event.startDateTime || event.startDate).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })
+                        : 'TBA'
+                      }
                     </p>
                   </div>
                 </div>
@@ -90,7 +134,15 @@ const EventDetail = () => {
                   <Clock className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm text-muted-foreground">Time</p>
-                    <p className="font-medium">{event.time}</p>
+                    <p className="font-medium">
+                      {event.startDateTime
+                        ? new Date(event.startDateTime).toLocaleTimeString('en-US', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })
+                        : 'TBA'
+                      }
+                    </p>
                   </div>
                 </div>
 
@@ -98,7 +150,7 @@ const EventDetail = () => {
                   <MapPin className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm text-muted-foreground">Venue</p>
-                    <p className="font-medium">{event.venue}</p>
+                    <p className="font-medium">{event.location || 'TBA'}</p>
                   </div>
                 </div>
 
@@ -114,8 +166,8 @@ const EventDetail = () => {
 
             {/* About Section */}
             <div className="glass glass-border rounded-xl p-6">
-              <h2 className="text-2xl font-bold mb-4">About This Event</h2>
-              <p className="text-muted-foreground leading-relaxed">{event.description}</p>
+              <h2 className="text-2xl font-semibold mb-4">About This Event</h2>
+              <p className="text-muted-foreground leading-relaxed">{event.generalIntroduction || event.detailedIntroduction || 'No description available'}</p>
             </div>
             
             {/* Event Schedule with Collapsible Sessions */}
