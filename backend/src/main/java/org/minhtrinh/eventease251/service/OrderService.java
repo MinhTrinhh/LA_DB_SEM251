@@ -7,13 +7,7 @@ import org.minhtrinh.eventease251.dto.OrderDTO;
 import org.minhtrinh.eventease251.dto.TicketDTO;
 import org.minhtrinh.eventease251.dto.TicketCategoryDTO;
 import org.minhtrinh.eventease251.dto.EventDTO;
-import org.minhtrinh.eventease251.dto.SessionDTO;
-import org.minhtrinh.eventease251.entity.Order;
-import org.minhtrinh.eventease251.entity.Ticket;
-import org.minhtrinh.eventease251.entity.TicketCategory;
-import org.minhtrinh.eventease251.entity.User;
-import org.minhtrinh.eventease251.entity.Session;
-import org.minhtrinh.eventease251.entity.SessionId;
+import org.minhtrinh.eventease251.entity.*;
 import org.minhtrinh.eventease251.repository.OrderRepository;
 import org.minhtrinh.eventease251.repository.TicketRepository;
 import org.minhtrinh.eventease251.repository.TicketCategoryRepository;
@@ -63,7 +57,7 @@ public class OrderService {
         sessionId.setEvent(request.getEventId());
         
         // Validate session exists
-        Session session = sessionRepository.findById(sessionId)
+        sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new RuntimeException("Session not found"));
         
         // Calculate total amount and validate ticket categories
@@ -99,13 +93,18 @@ public class OrderService {
         
         // Create order
         Order order = new Order();
-        order.setOrderStatus("PENDING"); // Initial status
-        order.setCurrency(request.getCurrency());
+        order.setOrderStatus(OrderStatus.AWAITING_PAYMENT); // Initial status (enum)
+        order.setCurrency(OrderCurrency.valueOf(request.getCurrency())); // Convert String to enum
         order.setAmountOfMoney(totalAmount);
-        order.setParticipant(user);
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
-        
+
+        // Set participant profile reference
+        if (user.getParticipantProfile() == null) {
+            throw new RuntimeException("User must have a participant profile to create an order");
+        }
+        order.setParticipantProfile(user.getParticipantProfile());
+
         Order savedOrder = orderRepository.save(order);
         log.info("OrderService: Created order with ID: {}", savedOrder.getOrderId());
         
@@ -131,7 +130,7 @@ public class OrderService {
                 ticket.setQrCodeUrl(qrCodeUrl);
                 ticket.setCreatedAt(LocalDateTime.now());
                 ticket.setUpdatedAt(LocalDateTime.now());
-                
+
                 tickets.add(ticket);
             }
         }
@@ -190,19 +189,20 @@ public class OrderService {
     private OrderDTO convertToOrderDTO(Order order, List<Ticket> tickets) {
         OrderDTO dto = new OrderDTO();
         dto.setOrderId(order.getOrderId());
-        dto.setOrderStatus(order.getOrderStatus());
-        dto.setCurrency(order.getCurrency());
+        dto.setOrderStatus(order.getOrderStatus().name()); // Convert enum to String
+        dto.setCurrency(order.getCurrency().name()); // Convert enum to String
         dto.setAmountOfMoney(order.getAmountOfMoney());
-        dto.setUserId(order.getParticipant().getUserId());
-        // User has participantProfile with fullName
-        String userName = order.getParticipant().getParticipantProfile() != null 
-            ? order.getParticipant().getParticipantProfile().getFullName() 
+        dto.setUserId(order.getParticipantProfile().getUser().getUserId());
+
+        // Get user name from participant profile
+        String userName = order.getParticipantProfile().getFullName() != null
+            ? order.getParticipantProfile().getFullName()
             : "User";
         dto.setUserName(userName);
-        dto.setUserEmail(order.getParticipant().getEmailAddress());
-        dto.setCreatedAt(order.getCreatedAt());
-        dto.setUpdatedAt(order.getUpdatedAt());
-        
+        dto.setUserEmail(order.getParticipantProfile().getUser().getEmailAddress());
+        dto.setCreatedAt(null); // Not stored in database
+        dto.setUpdatedAt(null); // Not stored in database
+
         // Convert tickets
         List<TicketDTO> ticketDTOs = tickets.stream()
                 .map(this::convertToTicketDTO)
@@ -228,12 +228,12 @@ public class OrderService {
             eventDTO.setTitle(session.getEvent().getTitle());
             eventDTO.setGeneralIntroduction(session.getEvent().getGeneralIntroduction());
             eventDTO.setEventStatus(session.getEvent().getEventStatus());
-            eventDTO.setOrganizerId(session.getEvent().getOrganizer().getUserId());
+            eventDTO.setOrganizerId(session.getEvent().getOrganizerProfile().getUser().getUserId());
             eventDTO.setStartDateTime(session.getEvent().getStartDateTime());
             eventDTO.setEndDateTime(session.getEvent().getEndDateTime());
             eventDTO.setPosterUrl(session.getEvent().getPosterUrl());
             // Event doesn't have location field - will come from venue or session
-            
+
             dto.setEvent(eventDTO);
         }
         
@@ -247,11 +247,11 @@ public class OrderService {
         TicketDTO dto = new TicketDTO();
         dto.setTicketId(ticket.getTicketId());
         dto.setQrCodeUrl(ticket.getQrCodeUrl());
-        dto.setUsedFlag(ticket.getUsedFlag());
-        dto.setOrderId(ticket.getOrder().getOrderId());
+        dto.setUsedFlag(ticket.isUsedFlag()); // Use isUsedFlag() for primitive boolean
+        dto.setOrderId(ticket.getOrder() != null ? ticket.getOrder().getOrderId() : null);
         dto.setCreatedAt(ticket.getCreatedAt());
         dto.setUpdatedAt(ticket.getUpdatedAt());
-        
+
         // Convert ticket category using builder
         TicketCategory category = ticket.getCategory();
         TicketCategoryDTO categoryDTO = TicketCategoryDTO.builder()

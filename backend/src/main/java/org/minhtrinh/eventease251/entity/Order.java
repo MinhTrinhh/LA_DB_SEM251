@@ -1,40 +1,48 @@
 package org.minhtrinh.eventease251.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "`ORDER`")  // Using backticks because ORDER is a reserved SQL keyword
-@Data
+@Table(name = "[order]")  // Using brackets for SQL Server reserved keyword
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = {"participantProfile", "tickets"})
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "Order_ID")
+    @Column(name = "order_id")
+    @EqualsAndHashCode.Include
     private Long orderId;
 
-    @Column(name = "Order_Status")
-    private String orderStatus;
+    @Column(name = "order_status", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private OrderStatus orderStatus = OrderStatus.AWAITING_PAYMENT;
 
-    @Column(name = "Currency")
-    private String currency;
+    @Column(name = "currency")
+    @Enumerated(EnumType.STRING)
+    private OrderCurrency currency = OrderCurrency.VND;
 
-    @Column(name = "Amount_of_Money")
+    @Column(name = "amount_of_money")
     private BigDecimal amountOfMoney;
 
-    // Changed from Participant to User (who has ParticipantProfile)
+    // References ParticipantProfile (user_id references participant_profile.user_id)
     @ManyToOne
-    @JoinColumn(name = "User_ID", referencedColumnName = "User_ID")
-    private User participant;
-    
+    @JoinColumn(name = "user_id", referencedColumnName = "user_id")
+    private ParticipantProfile participantProfile;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
-    
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-    
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
     private List<Ticket> tickets;
 }

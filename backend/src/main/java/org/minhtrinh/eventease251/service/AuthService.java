@@ -67,18 +67,22 @@ public class AuthService {
         user.setStatus(UserStatus.AUTHENTICATED);
         user.setFailedLoginAttempts(0); // Initialize counter
 
-        // Step 5: By default, create empty participant profile and add ROLE_PARTICIPANT
+        // Step 5: By default, create empty participant profile
         ParticipantProfile participantProfile = new ParticipantProfile();
         participantProfile.setUser(user);
         user.setParticipantProfile(participantProfile);
-        user.addRole(Role.ROLE_PARTICIPANT);
 
-        User savedUser = userRepository.save(user);
+        // Save user first to get the userId generated
+        User savedUser = userRepository.saveAndFlush(user);
 
-        // Step 6: Generate JWT token
+        // Step 6: Now add ROLE_PARTICIPANT (userId is now available)
+        savedUser.addRole(Role.ROLE_PARTICIPANT);
+        savedUser = userRepository.save(savedUser);
+
+        // Step 7: Generate JWT token
         String token = jwtTokenProvider.generateToken(savedUser);
 
-        // Step 7: Return AuthResponse
+        // Step 8: Return AuthResponse
         return new AuthResponse(
             token,
             savedUser.getUserId(),

@@ -12,3 +12,6 @@ import java.util.List;
 public interface SessionRepository extends JpaRepository<Session, SessionId> {
     List<Session> findByEvent(Event event);
 }
+
+
+
