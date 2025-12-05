@@ -12,6 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { eventsApi, CreateEventRequest } from "@/api/events.api";
+import { formatVND } from "@/utils/currency";
 
 const CreateEvent = () => {
   const [step, setStep] = useState(1);
@@ -481,7 +482,7 @@ const CreateEvent = () => {
                           {session.ticketCategories.map((cat, j) => (
                             <div key={j} className="text-sm flex justify-between">
                               <span>{cat.name || `Category ${j + 1}`}</span>
-                              <span>${cat.price} • {cat.quantity} tickets</span>
+                              <span>{formatVND(cat.price)} • {cat.quantity} tickets</span>
                             </div>
                           ))}
                         </div>

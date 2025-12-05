@@ -1,17 +1,23 @@
 package org.minhtrinh.eventease251.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "ticket_category")
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = "session")
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class TicketCategory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "category_id")
+    @EqualsAndHashCode.Include
     private Long categoryId;
 
     @Column(name = "category_name")

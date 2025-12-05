@@ -50,7 +50,7 @@ public class SalesService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found with ID: " + eventId));
         
-        if (!event.getOrganizer().getUserId().equals(organizerId)) {
+        if (!event.getOrganizerProfile().getUser().getUserId().equals(organizerId)) {
             throw new RuntimeException("You don't have permission to view sales for this event");
         }
         

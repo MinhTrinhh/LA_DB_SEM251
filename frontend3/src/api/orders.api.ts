@@ -9,7 +9,7 @@ export interface CreateOrderRequest {
   sessionId: number;
   ticketQuantities: Record<number, number>; // ticketCategoryId -> quantity
   currency: string;
-  paymentMethod?: string;
+  paymentMethodId: number; // Payment method ID (e.g., 6 for MB Bank)
 }
 
 export interface TicketCategoryDTO {
@@ -42,6 +42,14 @@ export interface EventDTO {
   location?: string;
 }
 
+export interface PaymentMethodDTO {
+  methodId: number;
+  chargedFee: number;
+  feePayer: string;
+  type: string; // "BANK" or "E_WALLET"
+  name: string; // Bank name or E-wallet name
+}
+
 export interface OrderDTO {
   orderId: number;
   orderStatus: string;
@@ -54,6 +62,9 @@ export interface OrderDTO {
   updatedAt: string;
   tickets: TicketDTO[];
   event?: EventDTO; // Included in My Tickets response
+  qrCodeUrl?: string; // Payment QR code URL
+  paymentDescription?: string; // Payment description (e.g., "ORDER123")
+  paymentMethod?: PaymentMethodDTO; // Payment method info
 }
 
 // ============================================

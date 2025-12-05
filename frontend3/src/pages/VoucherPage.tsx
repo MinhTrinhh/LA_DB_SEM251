@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { mockEvents } from '@/data/mockEvents';
+import { formatVND } from "@/utils/currency";
 
 interface Voucher {
   id: string;
@@ -280,7 +281,7 @@ export default function VoucherPage() {
                                 </div>
                                 <div>
                                   <div className="text-muted-foreground">Max Amount</div>
-                                  <div>${voucher.maxAmount}</div>
+                                  <div>{formatVND(voucher.maxAmount)}</div>
                                 </div>
                                 <div>
                                   <div className="text-muted-foreground">Expires</div>

@@ -23,4 +23,9 @@ public class OrderDTO {
     private LocalDateTime updatedAt;
     private List<TicketDTO> tickets;
     private EventDTO event; // For displaying event details in My Tickets
+
+    // Payment information
+    private String qrCodeUrl;
+    private PaymentMethodDTO paymentMethod;
+    private String paymentDescription;
 }

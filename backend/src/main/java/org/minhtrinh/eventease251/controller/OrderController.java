@@ -68,4 +68,46 @@ public class OrderController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+
+    /**
+     * Confirm payment for an order
+     * POST /api/orders/{orderId}/confirm-payment
+     */
+    @PostMapping("/{orderId}/confirm-payment")
+    @PreAuthorize("hasRole('ROLE_PARTICIPANT')")
+    public ResponseEntity<?> confirmPayment(@PathVariable Long orderId) {
+        try {
+            Long userId = JwtTokenProvider.getAuthenticatedUserId();
+
+            log.info("OrderController: Confirming payment for order {} by user {}", orderId, userId);
+            OrderDTO orderDTO = orderService.confirmPayment(orderId, userId);
+
+            return ResponseEntity.ok(orderDTO);
+        } catch (RuntimeException e) {
+            log.error("OrderController: Error confirming payment for order {}", orderId, e);
+            ErrorResponse errorResponse = new ErrorResponse();
+            errorResponse.setMessage(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
+
+    /**
+     * Cancel an order
+     * DELETE /api/orders/{orderId}
+     */
+    @DeleteMapping("/{orderId}")
+    @PreAuthorize("hasRole('ROLE_ORGANIZER') or hasRole('ROLE_ADMIN')")
+    public ResponseEntity<?> cancelOrder(@PathVariable Long orderId) {
+        try {
+            log.info("OrderController: Cancelling order {}", orderId);
+            orderService.cancelOrder(orderId);
+
+            return ResponseEntity.ok().body("Order cancelled successfully");
+        } catch (RuntimeException e) {
+            log.error("OrderController: Error cancelling order {}", orderId, e);
+            ErrorResponse errorResponse = new ErrorResponse();
+            errorResponse.setMessage(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
 }

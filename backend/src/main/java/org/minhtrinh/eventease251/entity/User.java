@@ -1,14 +1,19 @@
 package org.minhtrinh.eventease251.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
 @Table(name = "[user]")
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = {"userRoles", "participantProfile", "organizerProfile"})
+@EqualsAndHashCode(exclude = {"userRoles", "participantProfile", "organizerProfile"})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,15 +40,9 @@ public class User {
     @Column(name = "account_locked_until")
     private LocalDateTime accountLockedUntil;
 
-    // Roles - automatically managed based on profiles
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(
-        name = "user_role",
-        joinColumns = @JoinColumn(name = "user_id")
-    )
-    @Column(name = "role")
-    @Enumerated(EnumType.STRING)
-    private Set<Role> roles = new HashSet<>();
+    // Roles - managed through UserRole entity
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private Set<UserRole> userRoles = new HashSet<>();
 
     // Optional one-to-one with participant profile
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -63,22 +62,38 @@ public class User {
     }
 
     public void addRole(Role role) {
-        roles.add(role);
+        // Check if role already exists
+        if (hasRole(role)) {
+            return;
+        }
+        UserRole userRole = new UserRole();
+        userRole.setUserId(this.userId);
+        userRole.setRole(role);
+        userRole.setUser(this);
+        userRoles.add(userRole);
     }
 
     public void removeRole(Role role) {
-        roles.remove(role);
+        userRoles.removeIf(userRole -> userRole.getRole().equals(role));
     }
 
     public boolean hasRole(Role role) {
-        return roles.contains(role);
+        return userRoles.stream().anyMatch(userRole -> userRole.getRole().equals(role));
+    }
+
+    public Set<Role> getRoles() {
+        Set<Role> roles = new HashSet<>();
+        for (UserRole userRole : userRoles) {
+            roles.add(userRole.getRole());
+        }
+        return roles;
     }
 
     public boolean isParticipant() {
-        return roles.contains(Role.ROLE_PARTICIPANT);
+        return hasRole(Role.ROLE_PARTICIPANT);
     }
 
     public boolean isOrganizer() {
-        return roles.contains(Role.ROLE_ORGANIZER);
+        return hasRole(Role.ROLE_ORGANIZER);
     }
 }

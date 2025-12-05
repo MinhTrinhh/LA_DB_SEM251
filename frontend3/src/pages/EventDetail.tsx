@@ -8,6 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useState, useEffect } from "react";
 import { eventsApi } from "@/api/events.api";
 import { BackendEvent } from "@/types/api.types";
+import { formatVND } from "@/utils/currency";
 
 const EventDetail = () => {
   const { id } = useParams();
@@ -257,7 +258,7 @@ const EventDetail = () => {
                               >
                                 <span className="font-medium">{category.categoryName}</span>
                                 <span className="text-lg font-bold text-primary">
-                                  {category.price === 0 ? 'Free' : `$${category.price.toFixed(2)}`}
+                                  {category.price === 0 ? 'Free' : formatVND(category.price)}
                                 </span>
                               </div>
                             ))}
@@ -310,7 +311,7 @@ const EventDetail = () => {
                                 </span>
                               </div>
                               <span className="text-xl font-bold text-primary">
-                                {category.price === 0 ? 'Free' : `$${category.price.toFixed(2)}`}
+                                {category.price === 0 ? 'Free' : formatVND(category.price)}
                               </span>
                             </div>
                           ))}
