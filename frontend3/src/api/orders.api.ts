@@ -87,4 +87,12 @@ export const ordersApi = {
     const response = await apiClient.get<OrderDTO[]>('/api/orders/my-orders');
     return response.data;
   },
+
+  /**
+   * Confirm payment for an order (requires ROLE_PARTICIPANT)
+   */
+  confirmPayment: async (orderId: number): Promise<OrderDTO> => {
+    const response = await apiClient.post<OrderDTO>(`/api/orders/${orderId}/confirm-payment`);
+    return response.data;
+  },
 };

@@ -1,19 +1,5 @@
--- ================================================
--- V5: FIX TICKET TRIGGERS
--- Fix the INSTEAD OF INSERT trigger to properly handle identity columns
--- ================================================
-
--- Drop the existing triggers that conflict with Hibernate
-DROP TRIGGER IF EXISTS trg_GenerateTicketQRCode;
-DROP TRIGGER IF EXISTS trg_PreventTicketOverselling;
-GO
-
--- ================================================
--- New AFTER INSERT trigger for ticket validation
--- This validates after the insert, allowing Hibernate to properly manage the ID
--- ================================================
 CREATE TRIGGER trg_ValidateTicketAvailability
-ON TICKET
+ON ticket
 AFTER INSERT
 AS
 BEGIN
@@ -25,8 +11,9 @@ BEGIN
     DECLARE @TicketCount INT;
 
     -- Get unique categories from inserted tickets
-    DECLARE category_cursor CURSOR FOR
-        SELECT DISTINCT Category_ID
+    -- Use LOCAL cursor to avoid naming conflicts
+    DECLARE category_cursor CURSOR LOCAL FOR
+        SELECT DISTINCT category_id
         FROM inserted;
 
     OPEN category_cursor;
@@ -41,8 +28,8 @@ BEGIN
 
         -- Get current sold count (including just inserted)
         SELECT @CurrentSold = COUNT(*)
-        FROM TICKET
-        WHERE Category_ID = @CategoryId;
+        FROM ticket
+        WHERE category_id = @CategoryId;
 
         -- Check if we've exceeded capacity
         IF @CurrentSold > @MaximumSlot
@@ -53,7 +40,7 @@ BEGIN
             -- Get count of tickets just inserted for this category
             SELECT @TicketCount = COUNT(*)
             FROM inserted
-            WHERE Category_ID = @CategoryId;
+            WHERE category_id = @CategoryId;
 
             DECLARE @ErrorMsg NVARCHAR(500);
             SET @ErrorMsg = CONCAT(
@@ -75,11 +62,4 @@ BEGIN
     DEALLOCATE category_cursor;
 END;
 GO
-
--- ================================================
--- Note: QR Code generation is now handled by the application
--- This is more flexible and doesn't interfere with Hibernate's ID management
--- ================================================
-
-PRINT 'Ticket triggers fixed successfully.';
 

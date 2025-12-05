@@ -9,6 +9,13 @@ import { Search, SlidersHorizontal, Loader2 } from "lucide-react";
 import { eventsApi } from "@/api/events.api";
 import { BackendEvent } from "@/types/api.types";
 import { Event } from "@/data/mockEvents";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -17,15 +24,59 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Filter and sort states
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortByPrice, setSortByPrice] = useState<string>("default");
+
   useEffect(() => {
     const fetchEvents = async () => {
       try {
         setLoading(true);
         setError(null);
-        const publicEvents = await eventsApi.getAllPublicEvents();
-        setEvents(publicEvents);
+
+        // Convert "all" and "default" to undefined for API call
+        const status = statusFilter === "all" ? undefined : statusFilter;
+        const sort = sortByPrice === "default" ? undefined : sortByPrice;
+
+        console.log('🔍 Filter Debug:', {
+          statusFilter,
+          sortByPrice,
+          status,
+          sort,
+          willUseFilteredAPI: !!(status || sort)
+        });
+
+        // Use filtered API if filters are applied, otherwise use all public events
+        if (status || sort) {
+          console.log('📡 Calling getFilteredAndSortedEvents with:', { status, sort });
+          const filteredEvents = await eventsApi.getFilteredAndSortedEvents(status, sort);
+          console.log('✅ Received events:', filteredEvents.length, 'events');
+
+          // Log event prices to verify sort order
+          if (sort) {
+            console.log('📊 Events with prices (in received order):');
+            filteredEvents.forEach((event, index) => {
+              // Calculate min price from sessions
+              const prices: number[] = [];
+              event.sessions?.forEach(session => {
+                session.ticketCategories?.forEach(cat => {
+                  prices.push(Number(cat.price));
+                });
+              });
+              const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+              console.log(`  ${index + 1}. ${event.title} - Min Price: ${minPrice} VND`);
+            });
+          }
+
+          setEvents(filteredEvents);
+        } else {
+          console.log('📡 Calling getAllPublicEvents');
+          const publicEvents = await eventsApi.getAllPublicEvents();
+          console.log('✅ Received events:', publicEvents.length, 'events');
+          setEvents(publicEvents);
+        }
       } catch (err) {
-        console.error('Failed to fetch events:', err);
+        console.error('❌ Failed to fetch events:', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to load events';
         setError(errorMessage);
       } finally {
@@ -34,12 +85,14 @@ const Index = () => {
     };
 
     fetchEvents();
-  }, []);
+  }, [statusFilter, sortByPrice]); // Re-fetch when filters change
 
   // Convert BackendEvent to Event format for EventCard
   const convertToEvent = (backendEvent: BackendEvent): Event => {
     // Find minimum price across all ticket categories in all sessions
     const getMinimumPrice = (): number => {
+      // If sessions data is not available (filtered API response), return 0
+      // The stored function calculates min_price but we don't have a field for it in BackendEvent type
       if (!backendEvent.sessions || backendEvent.sessions.length === 0) return 0;
       
       const allPrices: number[] = [];
@@ -55,6 +108,9 @@ const Index = () => {
     };
 
     const minPrice = getMinimumPrice();
+
+    // Debug: Log poster URLs
+    console.log(`📷 Event: ${backendEvent.title}, PosterURL: ${backendEvent.posterUrl}`);
 
     return {
       id: backendEvent.eventId.toString(),
@@ -88,9 +144,8 @@ const Index = () => {
 
   const convertedEvents = events.map(convertToEvent);
   
-  // For now, treat first 3 events as featured
-  const featuredEvents = convertedEvents.slice(0, 3);
-  const upcomingEvents = convertedEvents.slice(3);
+  // Show all events in the main section
+  const featuredEvents = convertedEvents;
 
   if (loading) {
     return (
@@ -120,6 +175,9 @@ const Index = () => {
     );
   }
 
+  // Check if filters are active
+  const hasActiveFilters = statusFilter !== "all" || sortByPrice !== "default";
+
   if (events.length === 0) {
     return (
       <div className="min-h-screen">
@@ -130,17 +188,109 @@ const Index = () => {
             <HeroCarousel />
           </section>
 
+          {/* Search & Filter Bar (still show when empty) */}
+          <section className="sticky top-16 z-40 glass glass-border">
+            <div className="container mx-auto px-4 py-4">
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search events..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 bg-input border-border"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="gap-2"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  Filter & Sort
+                </Button>
+              </div>
+
+              {/* Filter Panel */}
+              {showFilters && (
+                <div className="mt-4 p-4 glass-border rounded-lg space-y-4 animate-fade-in">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Event Status</label>
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="bg-input border-border">
+                          <SelectValue placeholder="All Events" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Events</SelectItem>
+                          <SelectItem value="COMING_SOON">Coming Soon</SelectItem>
+                          <SelectItem value="ONGOING">Ongoing</SelectItem>
+                          <SelectItem value="COMPLETED">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Sort by Price</label>
+                      <Select value={sortByPrice} onValueChange={setSortByPrice}>
+                        <SelectTrigger className="bg-input border-border">
+                          <SelectValue placeholder="Default" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="default">Default (by date)</SelectItem>
+                          <SelectItem value="ASC">Price: Low to High</SelectItem>
+                          <SelectItem value="DESC">Price: High to Low</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Always show Clear Filters when filters are active */}
+                  {hasActiveFilters && (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setStatusFilter("all");
+                          setSortByPrice("default");
+                        }}
+                      >
+                        Clear Filters
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+
           {/* Empty State */}
           <section className="container mx-auto px-4 py-20 text-center">
             <div className="max-w-md mx-auto">
-              <h2 className="text-3xl font-bold mb-4">No Events Yet</h2>
+              <h2 className="text-3xl font-bold mb-4">
+                {hasActiveFilters ? "No Events Found" : "No Events Yet"}
+              </h2>
               <p className="text-muted-foreground mb-6">
-                There are currently no events available in the system. 
-                Check back later or create your first event!
+                {hasActiveFilters
+                  ? "No events match your current filters. Try adjusting your search criteria or clearing the filters."
+                  : "There are currently no events available in the system. Check back later or create your first event!"
+                }
               </p>
-              <Button variant="cta" asChild>
-                <a href="/organize/create">Create Event</a>
-              </Button>
+              {hasActiveFilters ? (
+                <Button
+                  variant="cta"
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setSortByPrice("default");
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              ) : (
+                <Button variant="cta" asChild>
+                  <a href="/organize/create">Create Event</a>
+                </Button>
+              )}
             </div>
           </section>
         </main>
@@ -178,35 +328,82 @@ const Index = () => {
                 className="gap-2"
               >
                 <SlidersHorizontal className="w-4 h-4" />
-                Filters
+                Filter & Sort
               </Button>
             </div>
 
             {/* Filter Panel */}
             {showFilters && (
               <div className="mt-4 p-4 glass-border rounded-lg space-y-4 animate-fade-in">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Date Range</label>
-                    <Input type="date" className="bg-input border-border" />
+                    <label className="text-sm font-medium mb-2 block">Event Status</label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="bg-input border-border">
+                        <SelectValue placeholder="All Events" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Events</SelectItem>
+                        <SelectItem value="COMING_SOON">Coming Soon</SelectItem>
+                        <SelectItem value="ONGOING">Ongoing</SelectItem>
+                        <SelectItem value="COMPLETED">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Location</label>
-                    <Input placeholder="Enter city or zip" className="bg-input border-border" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Event Type</label>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1">All</Button>
-                      <Button variant="outline" size="sm" className="flex-1">Free</Button>
-                      <Button variant="outline" size="sm" className="flex-1">Paid</Button>
-                    </div>
+                    <label className="text-sm font-medium mb-2 block">Sort by Price</label>
+                    <Select value={sortByPrice} onValueChange={setSortByPrice}>
+                      <SelectTrigger className="bg-input border-border">
+                        <SelectValue placeholder="Default" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">Default</SelectItem>
+                        <SelectItem value="ASC">Price: Low to High</SelectItem>
+                        <SelectItem value="DESC">Price: High to Low</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
+
+                {/* Clear Filters Button - Always show when filters are active */}
+                {hasActiveFilters && (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setStatusFilter("all");
+                        setSortByPrice("default");
+                      }}
+                    >
+                      Clear Filters
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </section>
+
+        {/* Active Filters Indicator */}
+        {hasActiveFilters && (
+          <section className="container mx-auto px-4 py-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Active filters:</span>
+              {statusFilter !== "all" && (
+                <span className="px-2 py-1 bg-primary/20 rounded-md">
+                  Status: {statusFilter.replace('_', ' ')}
+                </span>
+              )}
+              {sortByPrice !== "default" && (
+                <span className="px-2 py-1 bg-primary/20 rounded-md">
+                  Sort: {sortByPrice === "ASC" ? "Price Low to High" : "Price High to Low"}
+                </span>
+              )}
+              <span className="text-muted-foreground">• {events.length} event(s) found</span>
+            </div>
+          </section>
+        )}
 
         {/* Featured Events */}
         <section className="container mx-auto px-4 py-12">
@@ -216,19 +413,6 @@ const Index = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {featuredEvents.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
-        </section>
-
-        {/* Upcoming Events */}
-        <section className="container mx-auto px-4 py-12">
-          <div className="mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold mb-2">Upcoming Events</h2>
-            <p className="text-muted-foreground">Explore events happening soon</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {upcomingEvents.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
           </div>

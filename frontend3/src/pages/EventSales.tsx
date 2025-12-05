@@ -140,7 +140,7 @@ const EventSales = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
                 <p className="text-3xl font-bold text-cta">
-                  ${salesData.totalRevenue?.toLocaleString() || '0'}
+                  {formatVND(salesData.totalRevenue || 0)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   via fn_CalculateEventRevenue
@@ -242,7 +242,7 @@ const EventSales = () => {
                     />
                   </div>
                   <div className="w-32 text-right">
-                    <p className="font-bold">${day.dailyRevenue?.toLocaleString() || '0'}</p>
+                    <p className="font-bold">{formatVND(day.dailyRevenue || 0)}</p>
                     <p className="text-sm text-muted-foreground">{day.ticketsSold} tickets</p>
                   </div>
                 </div>

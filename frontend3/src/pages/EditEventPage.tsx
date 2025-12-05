@@ -499,7 +499,7 @@ export default function EditEventPage() {
                                     />
                                   </div>
                                   <div>
-                                    <Label className="text-xs">Price ($)</Label>
+                                    <Label className="text-xs">Price (VND)</Label>
                                     <Input
                                       type="number"
                                       value={category.price}

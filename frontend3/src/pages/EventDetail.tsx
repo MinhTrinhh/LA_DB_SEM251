@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { eventsApi } from "@/api/events.api";
 import { BackendEvent } from "@/types/api.types";
 import { formatVND } from "@/utils/currency";
+import { getPosterUrl } from "@/utils/posterUrl";
 
 const EventDetail = () => {
   const { id } = useParams();
@@ -105,9 +106,12 @@ const EventDetail = () => {
         {/* Hero Section */}
         <div className="relative h-[60vh] rounded-2xl overflow-hidden mb-8">
           <img
-            src={event.posterUrl || '/placeholder.svg'}
+            src={getPosterUrl(event.posterUrl)}
             alt={event.title}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.src = '/placeholder.svg';
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
           
@@ -368,7 +372,7 @@ const EventDetail = () => {
                   {minPrice !== null
                     ? minPrice === 0
                       ? 'Free'
-                      : `$${minPrice.toFixed(2)}`
+                      : `${minPrice.toLocaleString('vi-VN')} ₫`
                     : 'TBA'
                   }
                 </p>

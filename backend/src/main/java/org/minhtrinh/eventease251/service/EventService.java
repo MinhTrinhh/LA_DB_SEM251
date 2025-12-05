@@ -21,7 +21,9 @@ import org.minhtrinh.eventease251.repository.TicketCategoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -59,16 +61,36 @@ public class EventService {
             throw new RuntimeException("Event must have at least one session");
         }
         
-        // Create the event using JDBC Template
-        Long eventId = eventRepository.createEvent(request, organizerId);
-        
-        log.info("Event created successfully with ID: {}", eventId);
-        
-        return new CreateEventResponse(
-            eventId,
-            request.getTitle(),
-            "Event created and published successfully"
-        );
+        try {
+            // Create the event using JDBC Template
+            // This will trigger the database validation for event date/times
+            Long eventId = eventRepository.createEvent(request, organizerId);
+
+            log.info("Event created successfully with ID: {}", eventId);
+
+            return new CreateEventResponse(
+                eventId,
+                request.getTitle(),
+                "Event created and published successfully"
+            );
+        } catch (Exception e) {
+            // Log the database validation error
+            log.error("Failed to create event: {}", e.getMessage());
+
+            // Check if this is a date/time validation error from the trigger
+            String errorMessage = e.getMessage();
+            if (errorMessage != null && errorMessage.contains("Event validation failed")) {
+                // Re-throw with the specific validation message from the trigger
+                throw new RuntimeException(errorMessage, e);
+            } else if (errorMessage != null && errorMessage.contains("start_date_time")) {
+                throw new RuntimeException("Invalid event start date/time. Please ensure the event starts in the future.", e);
+            } else if (errorMessage != null && errorMessage.contains("end_date_time")) {
+                throw new RuntimeException("Invalid event end date/time. Please ensure the event ends after it starts and is in the future.", e);
+            } else {
+                // Re-throw with generic message
+                throw new RuntimeException("Failed to create event: " + errorMessage, e);
+            }
+        }
     }
     
     /**
@@ -129,8 +151,14 @@ public class EventService {
         dto.setStartDateTime(event.getStartDateTime());
         dto.setEndDateTime(event.getEndDateTime());
         dto.setTimestamp(event.getTimestamp());
-        dto.setPosterUrl(event.getPosterUrl());
-        
+
+        // Set poster URL with fallback to default if not provided
+        String posterUrl = event.getPosterUrl();
+        if (posterUrl == null || posterUrl.isEmpty()) {
+            posterUrl = "/uploads/posters/default-event-poster.png";
+        }
+        dto.setPosterUrl(posterUrl);
+
         // Fetch and convert sessions
         List<Session> sessions = sessionRepository.findByEvent(event);
         List<SessionDTO> sessionDTOs = sessions.stream()
@@ -190,7 +218,7 @@ public class EventService {
         return TicketCategoryDTO.builder()
                 .ticketCategoryId(category.getCategoryId())
                 .sessionId(category.getSession().getSessionId())
-                .categoryName(category.getCategoryName())
+                .name(category.getCategoryName())
                 .price(category.getPrice())
                 .quantity(category.getMaximumSlot())
                 .soldQuantity(0) // TODO: Calculate sold quantity from tickets
@@ -199,10 +227,15 @@ public class EventService {
 
     /**
      * Get all public events (non-draft events)
-     * Returns events with status: COMING_SOON, HAPPENING, ENDED
+     * Returns events with status: COMING_SOON, ONGOING, COMPLETED
+     * Automatically updates event statuses before returning
      */
     public List<EventDTO> getAllPublicEvents() {
         log.info("EventService: Getting all public events");
+
+        // Update event statuses before querying
+        updateEventStatuses();
+
         List<Event> events = eventRepository.findAll();
         
         // Filter out draft events
@@ -213,10 +246,68 @@ public class EventService {
     }
 
     /**
+     * Get filtered and sorted events using stored function
+     * @param eventStatus Filter by event status (ONGOING, COMING_SOON, COMPLETED) or null for all
+     * @param sortByPrice Sort by price ('ASC' for cheapest first, 'DESC' for expensive first, null for no sort)
+     * @return List of event DTOs with full details including sessions
+     */
+    public List<EventDTO> getFilteredAndSortedEvents(String eventStatus, String sortByPrice) {
+        log.info("EventService: Getting filtered and sorted events - status: {}, sortByPrice: {}", eventStatus, sortByPrice);
+
+        // Call JDBC repository to use stored function for filtering/sorting
+        List<Map<String, Object>> eventMaps = eventRepository.getFilteredAndSortedEvents(eventStatus, sortByPrice);
+
+        // Log the results from stored function with prices
+        log.info("Stored function returned {} events", eventMaps.size());
+        for (int i = 0; i < Math.min(5, eventMaps.size()); i++) {
+            Map<String, Object> map = eventMaps.get(i);
+            log.info("  Event #{}: ID={}, Title={}, MinPrice={}",
+                i + 1,
+                map.get("event_id"),
+                map.get("title"),
+                map.get("min_price"));
+        }
+
+        // Extract event IDs from the filtered results (maintaining order)
+        List<Long> eventIds = eventMaps.stream()
+                .map(map -> ((Number) map.get("event_id")).longValue())
+                .collect(Collectors.toList());
+
+        log.info("Event IDs in sorted order: {}", eventIds);
+
+        if (eventIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Fetch complete event objects with sessions
+        List<Event> events = eventRepository.findAllById(eventIds);
+        log.info("Fetched {} complete Event entities from JPA", events.size());
+
+        // Convert to DTOs maintaining the sort order from stored function
+        Map<Long, Event> eventMap = events.stream()
+                .collect(Collectors.toMap(Event::getEventId, e -> e));
+
+        List<EventDTO> result = eventIds.stream()
+                .map(eventMap::get)
+                .filter(event -> event != null)
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+
+        log.info("Returning {} EventDTOs in sorted order", result.size());
+
+        return result;
+    }
+
+    /**
      * Get event by ID with full details
+     * Automatically updates event statuses before returning
      */
     public EventDTO getEventById(Long eventId) {
         log.info("EventService: Getting event details for ID: {}", eventId);
+
+        // Update event statuses before querying
+        updateEventStatuses();
+
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found with ID: " + eventId));
         
@@ -226,6 +317,20 @@ public class EventService {
         }
         
         return convertToDTO(event);
+    }
+
+    /**
+     * Update event statuses by calling the stored procedure
+     * This ensures statuses are current based on date/time
+     */
+    private void updateEventStatuses() {
+        try {
+            log.debug("Calling stored procedure to update event statuses");
+            eventRepository.updateEventStatuses();
+        } catch (Exception e) {
+            // Log but don't fail the request if status update fails
+            log.warn("Failed to update event statuses: {}", e.getMessage());
+        }
     }
 
 }

@@ -13,7 +13,6 @@ import Register from "./pages/Register";
 import EventDetail from "./pages/EventDetail";
 import TicketSelection from "./pages/TicketSelection";
 import Checkout from "./pages/Checkout";
-import Confirmation from "./pages/Confirmation";
 import MyTickets from "./pages/MyTickets";
 import ParticipantProfile from "./pages/ParticipantProfile";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
@@ -67,11 +66,6 @@ const App = () => (
             <Route path="/event/:eventId/checkout" element={
               <ProtectedRoute>
                 <Checkout />
-              </ProtectedRoute>
-            } />
-            <Route path="/confirmation" element={
-              <ProtectedRoute>
-                <Confirmation />
               </ProtectedRoute>
             } />
             <Route path="/my-tickets" element={

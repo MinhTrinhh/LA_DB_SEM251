@@ -1,12 +1,15 @@
 import { Calendar, MapPin } from "lucide-react";
 import { Event } from "@/data/mockEvents";
 import { Link } from "react-router-dom";
+import { getPosterUrl } from "@/utils/posterUrl";
 
 interface EventCardProps {
   event: Event;
 }
 
 const EventCard = ({ event }: EventCardProps) => {
+  const posterUrl = getPosterUrl(event.image);
+
   return (
     <Link 
       to={`/event/${event.id}`}
@@ -15,9 +18,13 @@ const EventCard = ({ event }: EventCardProps) => {
       {/* Image */}
       <div className="aspect-video overflow-hidden">
         <img
-          src={event.image}
+          src={posterUrl}
           alt={event.title}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+          onError={(e) => {
+            // Fallback to placeholder if image fails to load
+            e.currentTarget.src = '/placeholder.svg';
+          }}
         />
       </div>
 
@@ -47,7 +54,7 @@ const EventCard = ({ event }: EventCardProps) => {
         {/* Price */}
         <div className="pt-2">
           <span className="text-lg font-bold">
-            {event.isFree ? 'Free' : `From $${event.price}`}
+            {event.isFree ? 'Free' : `From ${event.price.toLocaleString('vi-VN')} ₫`}
           </span>
         </div>
       </div>

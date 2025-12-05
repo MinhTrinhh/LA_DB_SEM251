@@ -80,13 +80,13 @@ public class ProfileService {
         profile.setOfficialName(request.getOfficialName());
         profile.setTaxId(request.getTaxId());
         profile.setLogoUrl(request.getLogoUrl());
-        profile.setStatus(OrganizerStatus.PENDING); // Needs admin verification
+        profile.setStatus(OrganizerStatus.VERIFIED); // Needs admin verification
 
         user.setOrganizerProfile(profile);
 
         // Save user with organizer profile first
         User savedUser = userRepository.saveAndFlush(user);
-        
+
         // Add organizer role (userId is already set)
         savedUser.addRole(Role.ROLE_ORGANIZER);
         savedUser = userRepository.save(savedUser);

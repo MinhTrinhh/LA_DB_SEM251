@@ -80,7 +80,7 @@ const MyTicketCard = ({ ticket, isPast = false }: MyTicketCardProps) => {
                 <div>
                   <span>Total: </span>
                   <span className="text-primary font-semibold">
-                    {ticket.totalPrice === 0 ? 'Free' : `$${ticket.totalPrice}`}
+                    {ticket.totalPrice === 0 ? 'Free' : `${ticket.totalPrice.toLocaleString('vi-VN')} ₫`}
                   </span>
                 </div>
               </div>
@@ -153,7 +153,7 @@ const MyTicketCard = ({ ticket, isPast = false }: MyTicketCardProps) => {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total:</span>
                       <span className="font-bold text-primary">
-                        {ticket.totalPrice === 0 ? 'Free' : `$${ticket.totalPrice}`}
+                        {ticket.totalPrice === 0 ? 'Free' : `${ticket.totalPrice.toLocaleString('vi-VN')} ₫`}
                       </span>
                     </div>
                   </div>

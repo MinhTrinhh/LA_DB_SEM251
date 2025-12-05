@@ -15,6 +15,8 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Repository
 @RequiredArgsConstructor
@@ -205,5 +207,72 @@ public class EventRepositoryCustomImpl implements EventRepositoryCustom {
         }
         
         return ticketCategoryId;
+    }
+
+    @Override
+    public List<Map<String, Object>> getFilteredAndSortedEvents(String eventStatus, String sortByPrice) {
+        log.info("Getting filtered and sorted events: status={}, sortByPrice={}", eventStatus, sortByPrice);
+
+        // First, update event statuses
+        try {
+            jdbcTemplate.execute("EXEC dbo.sp_UpdateEventStatuses");
+            log.debug("Event statuses updated before filtering");
+        } catch (Exception e) {
+            log.warn("Failed to update event statuses: {}", e.getMessage());
+        }
+
+        // Call table-valued function to get filtered events
+        // Note: fn_GetFilteredAndSortedEvents is a function, not a stored procedure
+        String sql = "SELECT * FROM dbo.fn_GetFilteredAndSortedEvents(?, ?)";
+
+        List<Map<String, Object>> events = jdbcTemplate.queryForList(sql, eventStatus, sortByPrice);
+
+        log.info("Retrieved {} events from function", events.size());
+
+        // Sort the results based on sortByPrice parameter
+        if ("ASC".equals(sortByPrice)) {
+            log.info("Sorting by min_price ASC");
+            events.sort((a, b) -> {
+                Number priceA = (Number) a.get("min_price");
+                Number priceB = (Number) b.get("min_price");
+                return Double.compare(
+                    priceA != null ? priceA.doubleValue() : 0.0,
+                    priceB != null ? priceB.doubleValue() : 0.0
+                );
+            });
+        } else if ("DESC".equals(sortByPrice)) {
+            log.info("Sorting by min_price DESC");
+            events.sort((a, b) -> {
+                Number priceA = (Number) a.get("min_price");
+                Number priceB = (Number) b.get("min_price");
+                return Double.compare(
+                    priceB != null ? priceB.doubleValue() : 0.0,
+                    priceA != null ? priceA.doubleValue() : 0.0
+                );
+            });
+        } else {
+            log.info("Sorting by start_date_time DESC (default)");
+            events.sort((a, b) -> {
+                Object dateA = a.get("start_date_time");
+                Object dateB = b.get("start_date_time");
+                if (dateA == null || dateB == null) return 0;
+                return ((Comparable) dateB).compareTo(dateA);
+            });
+        }
+
+        log.info("Found {} events with filters", events.size());
+        return events;
+    }
+
+    @Override
+    public void updateEventStatuses() {
+        log.debug("Calling stored procedure sp_UpdateEventStatuses");
+        try {
+            jdbcTemplate.execute("EXEC dbo.sp_UpdateEventStatuses");
+            log.debug("Event statuses updated successfully");
+        } catch (Exception e) {
+            log.error("Failed to update event statuses", e);
+            throw e;
+        }
     }
 }

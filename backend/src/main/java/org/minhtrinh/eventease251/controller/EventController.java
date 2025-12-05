@@ -39,9 +39,22 @@ public class EventController {
             
             CreateEventResponse response = eventService.createEvent(request, organizerId);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             ErrorResponse errorResponse = new ErrorResponse();
-            errorResponse.setMessage(e.getMessage());
+
+            // Check if this is a database validation error from trigger
+            String errorMessage = e.getMessage();
+            if (errorMessage != null && errorMessage.contains("Event validation failed")) {
+                // Extract the specific validation error from the trigger
+                errorResponse.setMessage(errorMessage);
+            } else if (errorMessage != null && errorMessage.contains("date/time")) {
+                // Generic date/time related error
+                errorResponse.setMessage("Invalid event date/time: " + errorMessage);
+            } else {
+                // Generic error
+                errorResponse.setMessage(errorMessage != null ? errorMessage : "Failed to create event");
+            }
+
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
@@ -110,6 +123,48 @@ public class EventController {
             List<EventDTO> events = eventService.getAllPublicEvents();
             return ResponseEntity.ok(events);
         } catch (RuntimeException e) {
+            ErrorResponse errorResponse = new ErrorResponse();
+            errorResponse.setMessage(e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    /**
+     * Get filtered and sorted public events (no authentication required)
+     * Uses stored function for efficient filtering and sorting
+     * 
+     * @param status Filter by event status: ONGOING, COMING_SOON, COMPLETED (optional)
+     * @param sortByPrice Sort by price: ASC (cheapest first) or DESC (most expensive first) (optional)
+     * @return List of filtered and sorted events
+     * 
+     * Examples:
+     * - GET /api/events/public/filtered - All public events
+     * - GET /api/events/public/filtered?status=ONGOING - Only ongoing events
+     * - GET /api/events/public/filtered?sortByPrice=ASC - Sorted by cheapest price
+     * - GET /api/events/public/filtered?status=COMING_SOON&sortByPrice=ASC - Coming soon events, cheapest first
+     */
+    @GetMapping("/public/filtered")
+    public ResponseEntity<?> getFilteredAndSortedEvents(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String sortByPrice) {
+        try {
+            // Validate sortByPrice parameter
+            if (sortByPrice != null && !sortByPrice.equals("ASC") && !sortByPrice.equals("DESC")) {
+                ErrorResponse errorResponse = new ErrorResponse();
+                errorResponse.setMessage("Invalid sortByPrice parameter. Must be 'ASC' or 'DESC'");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+            
+            // Validate status parameter
+            if (status != null && !status.equals("ONGOING") && !status.equals("COMING_SOON") && !status.equals("COMPLETED")) {
+                ErrorResponse errorResponse = new ErrorResponse();
+                errorResponse.setMessage("Invalid status parameter. Must be 'ONGOING', 'COMING_SOON', or 'COMPLETED'");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+            
+            List<EventDTO> events = eventService.getFilteredAndSortedEvents(status, sortByPrice);
+            return ResponseEntity.ok(events);
+        } catch (Exception e) {
             ErrorResponse errorResponse = new ErrorResponse();
             errorResponse.setMessage(e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);

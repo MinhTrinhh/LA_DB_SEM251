@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import PaymentQRModal from "@/components/PaymentQRModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +11,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar, MapPin, Clock, ArrowLeft, CreditCard, Wallet } from "lucide-react";
 import { BackendEvent, BackendSession } from "@/types/api.types";
 import { useToast } from "@/hooks/use-toast";
-import { ordersApi, OrderDTO } from "@/api/orders.api";
+import { ordersApi } from "@/api/orders.api";
+import { profilesApi } from "@/api/profiles.api";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatVND } from "@/utils/currency";
 
 interface SelectedTickets {
@@ -32,6 +33,7 @@ const Checkout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { authData } = useAuth();
   const state = location.state as CheckoutState;
 
   const [formData, setFormData] = useState({
@@ -42,8 +44,44 @@ const Checkout = () => {
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState<OrderDTO | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+
+  // Fetch participant profile and pre-fill form
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setIsLoadingProfile(true);
+
+        // Get participant profile
+        const profile = await profilesApi.getParticipantProfile();
+
+        // Pre-fill form with profile data
+        setFormData(prev => ({
+          ...prev,
+          name: profile.fullName || prev.name,
+          email: authData?.email || prev.email,
+          phone: profile.phoneNumber || prev.phone,
+        }));
+      } catch (error) {
+        console.log('Profile not found or incomplete, user will need to fill form manually');
+        // If profile doesn't exist or is incomplete, pre-fill email from auth
+        if (authData?.email) {
+          setFormData(prev => ({
+            ...prev,
+            email: authData.email
+          }));
+        }
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    if (authData) {
+      fetchProfile();
+    } else {
+      setIsLoadingProfile(false);
+    }
+  }, [authData]);
 
   useEffect(() => {
     if (!state || !state.selectedTickets || !state.event) {
@@ -107,30 +145,11 @@ const Checkout = () => {
 
       toast({
         title: "Order created successfully!",
-        description: `Order ID: ${orderData.orderId}`,
+        description: `Order #${orderData.orderId} - View in My Tickets to complete payment`,
       });
 
-      // Store order data and show QR modal if payment is required
-      setCurrentOrder(orderData);
-
-      if (orderData.amountOfMoney > 0 && orderData.qrCodeUrl) {
-        // Show QR code modal for payment
-        setShowQRModal(true);
-      } else {
-        // Free ticket, navigate directly to confirmation
-        navigate("/confirmation", {
-          state: {
-            order: orderData,
-            event,
-            session,
-            customerInfo: {
-              name: formData.name,
-              email: formData.email,
-              phone: formData.phone
-            }
-          }
-        });
-      }
+      // Always redirect to My Tickets page
+      navigate("/my-tickets");
     } catch (error: any) {
       console.error('Error creating order:', error);
       toast({
@@ -168,6 +187,19 @@ const Checkout = () => {
             {/* Customer Information */}
             <Card className="p-6">
               <h2 className="text-2xl font-bold mb-6">Customer Information</h2>
+
+              {isLoadingProfile && (
+                <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm text-blue-600">
+                  Loading your profile information...
+                </div>
+              )}
+
+              {!isLoadingProfile && formData.name && (
+                <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-sm text-green-600">
+                  ✓ Information pre-filled from your profile
+                </div>
+              )}
+
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="name">Full Name *</Label>
@@ -179,6 +211,7 @@ const Checkout = () => {
                     value={formData.name}
                     onChange={handleInputChange}
                     required
+                    disabled={isLoadingProfile}
                     className="mt-1.5"
                   />
                 </div>
@@ -193,6 +226,7 @@ const Checkout = () => {
                     value={formData.email}
                     onChange={handleInputChange}
                     required
+                    disabled={isLoadingProfile}
                     className="mt-1.5"
                   />
                   <p className="text-xs text-muted-foreground mt-1.5">
@@ -210,6 +244,7 @@ const Checkout = () => {
                     value={formData.phone}
                     onChange={handleInputChange}
                     required
+                    disabled={isLoadingProfile}
                     className="mt-1.5"
                   />
                 </div>
@@ -318,40 +353,18 @@ const Checkout = () => {
                 variant="cta"
                 disabled={isProcessing}
               >
-                {isProcessing ? "Processing..." : "Complete Order"}
+                {isProcessing ? "Processing..." : "Place Order"}
               </Button>
 
               <p className="text-xs text-muted-foreground text-center mt-4">
-                By completing this purchase, you agree to our terms and conditions
+                By placing this order, you agree to our terms and conditions.
+                You can complete payment from My Tickets page.
               </p>
             </Card>
           </div>
         </form>
       </main>
 
-      {/* Payment QR Code Modal */}
-      {currentOrder && (
-        <PaymentQRModal
-          open={showQRModal}
-          onClose={() => {
-            setShowQRModal(false);
-            // Navigate to confirmation page after closing modal
-            navigate("/confirmation", {
-              state: {
-                order: currentOrder,
-                event,
-                session,
-                customerInfo: {
-                  name: formData.name,
-                  email: formData.email,
-                  phone: formData.phone
-                }
-              }
-            });
-          }}
-          order={currentOrder}
-        />
-      )}
 
       <Footer />
     </div>

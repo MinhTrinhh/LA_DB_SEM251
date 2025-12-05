@@ -14,75 +14,10 @@ BEGIN
     DECLARE @SoldCount INT;
     
     SELECT @SoldCount = COUNT(*)
-    FROM TICKET
-    WHERE Category_ID = @CategoryId;
-    
-    RETURN ISNULL(@SoldCount, 0);
-END;
-GO
+    FROM ticket
+    WHERE category_id = @CategoryId;
 
--- ================================================
--- TRIGGER 3: Prevent Overselling Tickets (IMPORTANT BUSINESS RULE)
--- Requirement: Prevents users from buying more tickets than available stock
--- This enforces data integrity at the database level
--- ================================================
-CREATE TRIGGER trg_PreventTicketOverselling
-ON TICKET
-INSTEAD OF INSERT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    
-    DECLARE @CategoryId BIGINT;
-    DECLARE @RequestedQuantity INT;
-    DECLARE @MaximumSlot INT;
-    DECLARE @CurrentSold INT;
-    DECLARE @Available INT;
-    
-    -- Check each category being inserted
-    DECLARE category_cursor CURSOR FOR
-        SELECT Category_ID, COUNT(*) as Quantity
-        FROM inserted
-        GROUP BY Category_ID;
-    
-    OPEN category_cursor;
-    FETCH NEXT FROM category_cursor INTO @CategoryId, @RequestedQuantity;
-    
-    WHILE @@FETCH_STATUS = 0
-    BEGIN
-        -- Get maximum slot for this category
-        SELECT @MaximumSlot = maximum_slot
-        FROM ticket_category
-        WHERE category_id = @CategoryId;
-        
-        -- Get current sold count
-        SELECT @CurrentSold = COUNT(*)
-        FROM TICKET
-        WHERE Category_ID = @CategoryId;
-        
-        SET @Available = @MaximumSlot - @CurrentSold;
-        
-        -- Check if requested quantity exceeds available
-        IF @RequestedQuantity > @Available
-        BEGIN
-            CLOSE category_cursor;
-            DEALLOCATE category_cursor;
-            
-            RAISERROR('Cannot purchase %d tickets for category %d. Only %d tickets available.', 16, 1, 
-                @RequestedQuantity, @CategoryId, @Available);
-            RETURN;
-        END
-        
-        FETCH NEXT FROM category_cursor INTO @CategoryId, @RequestedQuantity;
-    END
-    
-    CLOSE category_cursor;
-    DEALLOCATE category_cursor;
-    
-    -- All validations passed, perform the actual insert
-    INSERT INTO TICKET (QR_Code_URL, Used_flag, Order_ID, Category_ID, created_at, updated_at)
-    SELECT QR_Code_URL, Used_flag, Order_ID, Category_ID, created_at, updated_at
-    FROM inserted;
+    RETURN ISNULL(@SoldCount, 0);
 END;
 GO
 
@@ -294,8 +229,8 @@ BEGIN
     IF @MaximumSlot IS NOT NULL
     BEGIN
         DECLARE @SoldCount INT;
-        SELECT @SoldCount = COUNT(*) FROM TICKET WHERE Category_ID = @CategoryId;
-        
+        SELECT @SoldCount = COUNT(*) FROM ticket WHERE category_id = @CategoryId;
+
         IF @MaximumSlot < @SoldCount
         BEGIN
             RAISERROR('Cannot set maximum slot (%d) below already sold tickets (%d)', 16, 1, @MaximumSlot, @SoldCount);
@@ -363,8 +298,8 @@ BEGIN
         e.start_date_time AS StartDateTime,
         e.end_date_time AS EndDateTime,
         dbo.fn_CalculateEventRevenue(@EventId) AS TotalRevenue,
-        (SELECT COUNT(*) FROM TICKET t 
-         INNER JOIN ticket_category tc ON t.Category_ID = tc.category_id 
+        (SELECT COUNT(*) FROM ticket t
+         INNER JOIN ticket_category tc ON t.category_id = tc.category_id
          WHERE tc.event_id = @EventId) AS TotalTicketsSold
     FROM event e
     WHERE e.event_id = @EventId;
@@ -421,7 +356,8 @@ BEGIN
     -- Get affected event IDs
     DECLARE @EventId BIGINT;
     
-    DECLARE event_cursor CURSOR FOR
+    -- Use LOCAL cursor to avoid naming conflicts
+    DECLARE event_cursor CURSOR LOCAL FOR
         SELECT DISTINCT event_id FROM inserted;
     
     OPEN event_cursor;
@@ -567,8 +503,8 @@ BEGIN
     
     -- Check if tickets have been sold
     DECLARE @SoldCount INT;
-    SELECT @SoldCount = COUNT(*) FROM TICKET WHERE Category_ID = @CategoryId;
-    
+    SELECT @SoldCount = COUNT(*) FROM ticket WHERE category_id = @CategoryId;
+
     IF @SoldCount > 0
     BEGIN
         RAISERROR('Cannot delete ticket category with %d sold tickets. Please process refunds first.', 16, 1, @SoldCount);

@@ -13,6 +13,14 @@ import {
 
 export const profilesApi = {
   /**
+   * Get current user's participant profile
+   */
+  getParticipantProfile: async (): Promise<ParticipantProfile> => {
+    const response = await apiClient.get<ParticipantProfile>('/api/users/me/profiles/participant');
+    return response.data;
+  },
+
+  /**
    * Complete participant profile (POST - fills empty profile created during registration)
    * Returns new JWT token (roles unchanged, but profile now has data)
    */

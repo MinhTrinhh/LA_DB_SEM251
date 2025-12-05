@@ -13,7 +13,7 @@ import java.math.BigDecimal;
 public class TicketCategoryDTO {
     private Long ticketCategoryId;
     private Long sessionId;
-    private String categoryName;
+    private String name; // Changed from categoryName to match frontend
     private BigDecimal price;
     private Integer quantity;
     private Integer soldQuantity;

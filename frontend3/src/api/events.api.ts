@@ -52,6 +52,28 @@ export const eventsApi = {
   },
 
   /**
+   * Get filtered and sorted public events
+   * @param status Filter by event status: ONGOING, COMING_SOON, COMPLETED (optional)
+   * @param sortByPrice Sort by price: ASC (cheapest first) or DESC (most expensive first) (optional)
+   */
+  getFilteredAndSortedEvents: async (
+    status?: string,
+    sortByPrice?: string
+  ): Promise<BackendEvent[]> => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (sortByPrice) params.append('sortByPrice', sortByPrice);
+    
+    const queryString = params.toString();
+    const url = queryString 
+      ? `/api/events/public/filtered?${queryString}`
+      : '/api/events/public/filtered';
+    
+    const response = await apiClient.get<BackendEvent[]>(url);
+    return response.data;
+  },
+
+  /**
    * Get event by ID
    */
   getEventById: async (eventId: number): Promise<BackendEvent> => {

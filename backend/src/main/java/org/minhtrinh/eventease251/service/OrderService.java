@@ -18,8 +18,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,6 +33,7 @@ public class OrderService {
     private final PaymentMethodRepository paymentMethodRepository;
     private final PaidByRepository paidByRepository;
     private final QRCodeService qrCodeService;
+    private final TicketQRCodeService ticketQRCodeService;
     private final PaymentMethodService paymentMethodService;
     /**
      * Create a new order with tickets
@@ -83,8 +82,18 @@ public class OrderService {
             
             // Check if enough tickets are available
             Long soldTickets = ticketRepository.countByCategory_CategoryId(categoryId);
+            log.info("Validation for category '{}' (ID: {}): maximum_slot={}, sold={}, requested={}, available={}",
+                    category.getCategoryName(), categoryId, category.getMaximumSlot(), soldTickets, quantity, 
+                    (category.getMaximumSlot() - soldTickets));
+            
             if (soldTickets + quantity > category.getMaximumSlot()) {
-                throw new RuntimeException("Not enough tickets available for category: " + category.getCategoryName());
+                String errorMsg = String.format(
+                    "Not enough tickets available for category '%s'. Maximum: %d, Already sold: %d, Requested: %d, Available: %d",
+                    category.getCategoryName(), category.getMaximumSlot(), soldTickets, quantity, 
+                    (category.getMaximumSlot() - soldTickets)
+                );
+                log.error(errorMsg);
+                throw new RuntimeException(errorMsg);
             }
             
             ticketCategories.add(category);
@@ -94,7 +103,17 @@ public class OrderService {
         
         // Create order
         Order order = new Order();
-        order.setOrderStatus(OrderStatus.AWAITING_PAYMENT); // Initial status (enum)
+
+        // For free tickets (amount = 0), automatically mark as PAID
+        // Otherwise, set to AWAITING_PAYMENT
+        if (totalAmount.compareTo(BigDecimal.ZERO) == 0) {
+            order.setOrderStatus(OrderStatus.PAID);
+            log.info("OrderService: Free order (amount = 0) - automatically marking as PAID");
+        } else {
+            order.setOrderStatus(OrderStatus.AWAITING_PAYMENT);
+            log.info("OrderService: Paid order (amount = {}) - status set to AWAITING_PAYMENT", totalAmount);
+        }
+
         order.setCurrency(OrderCurrency.valueOf(request.getCurrency())); // Convert String to enum
         order.setAmountOfMoney(totalAmount);
         order.setCreatedAt(LocalDateTime.now());
@@ -107,10 +126,21 @@ public class OrderService {
         order.setParticipantProfile(user.getParticipantProfile());
 
         Order savedOrder = orderRepository.save(order);
-        log.info("OrderService: Created order with ID: {}", savedOrder.getOrderId());
-        
-        // Create tickets for the order
+        log.info("OrderService: Created order with ID: {} with status: {}",
+                savedOrder.getOrderId(), savedOrder.getOrderStatus());
+
+        // Generate payment QR code and create PaidBy record only for paid orders
+        PaidBy paidBy = null;
+        if (totalAmount.compareTo(BigDecimal.ZERO) > 0) {
+            paidBy = createPaymentRecord(savedOrder, request.getPaymentMethodId());
+            log.info("OrderService: Payment QR code generated: {}", paidBy.getQrCodeUrl());
+        } else {
+            log.info("OrderService: Skipping payment QR code for free order");
+        }
+
+        // Create tickets for the order - each ticket gets unique validation QR code
         List<Ticket> tickets = new ArrayList<>();
+        int ticketIndex = 0;
         for (Map.Entry<Long, Integer> entry : request.getTicketQuantities().entrySet()) {
             Long categoryId = entry.getKey();
             Integer quantity = entry.getValue();
@@ -126,20 +156,32 @@ public class OrderService {
                 ticket.setCategory(category);
                 ticket.setUsedFlag(false);
                 
-                // Generate unique QR code URL for each ticket
-                String qrCodeUrl = generateQRCodeUrl(savedOrder.getOrderId(), categoryId, i);
-                ticket.setQrCodeUrl(qrCodeUrl);
+                // Generate unique ticket QR code for validation/check-in using TicketQRCodeService
+                // This QR code is stored in ticketqr directory and used for event entrance validation
+                String ticketQrCodeUrl = ticketQRCodeService.generateTicketQRCode(
+                    savedOrder.getOrderId(),
+                    categoryId,
+                    ticketIndex
+                );
+                ticket.setQrCodeUrl(ticketQrCodeUrl);
                 ticket.setCreatedAt(LocalDateTime.now());
                 ticket.setUpdatedAt(LocalDateTime.now());
 
                 tickets.add(ticket);
+                ticketIndex++;
             }
         }
         
         List<Ticket> savedTickets = ticketRepository.saveAll(tickets);
-        log.info("OrderService: Created {} tickets for order {}", savedTickets.size(), savedOrder.getOrderId());
-        
-        // Decrease ticket availability for each category
+        log.info("OrderService: Created {} tickets for order {} with unique validation QR codes",
+                savedTickets.size(), savedOrder.getOrderId());
+
+        // Note: We don't need to manually decrease maximum_slot here
+        // The database trigger (trg_ValidateTicketAvailability) automatically validates
+        // that we haven't exceeded capacity by counting tickets against maximum_slot
+        // Available tickets = maximum_slot - COUNT(tickets for this category)
+
+        // Log ticket sales for each category
         for (Map.Entry<Long, Integer> entry : request.getTicketQuantities().entrySet()) {
             Long categoryId = entry.getKey();
             Integer quantity = entry.getValue();
@@ -149,16 +191,13 @@ public class OrderService {
                     .findFirst()
                     .orElseThrow();
             
-            // Decrease available tickets
-            category.setMaximumSlot(category.getMaximumSlot() - quantity);
-            ticketCategoryRepository.save(category);
-            
-            log.info("OrderService: Decreased {} tickets from category {} (ID: {}). Remaining: {}", 
-                    quantity, category.getCategoryName(), categoryId, category.getMaximumSlot());
+            // Count currently sold tickets for this category
+            long soldCount = ticketRepository.countByCategory_CategoryId(categoryId);
+            long availableCount = category.getMaximumSlot() - soldCount;
+
+            log.info("OrderService: Sold {} tickets for category {} (ID: {}). Total sold: {}, Available: {} / {}",
+                    quantity, category.getCategoryName(), categoryId, soldCount, availableCount, category.getMaximumSlot());
         }
-        
-        // Generate payment QR code and create PaidBy record
-        PaidBy paidBy = createPaymentRecord(savedOrder, request.getPaymentMethodId());
 
         // Convert to DTO
         return convertToOrderDTO(savedOrder, savedTickets);
@@ -287,15 +326,7 @@ public class OrderService {
         return savedPaidBy;
     }
 
-    /**
-     * Generate QR code URL for a ticket
-     */
-    private String generateQRCodeUrl(Long orderId, Long categoryId, int ticketIndex) {
-        String uniqueId = UUID.randomUUID().toString();
-        return String.format("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ORDER:%d-CAT:%d-TICKET:%d-UUID:%s",
-                orderId, categoryId, ticketIndex, uniqueId);
-    }
-    
+
     /**
      * Convert Order entity to OrderDTO (without event details)
      */
@@ -383,7 +414,7 @@ public class OrderService {
         TicketCategoryDTO categoryDTO = TicketCategoryDTO.builder()
             .ticketCategoryId(category.getCategoryId())
             .sessionId(category.getSession().getSessionId())
-            .categoryName(category.getCategoryName())
+            .name(category.getCategoryName()) // Backend field: categoryName -> DTO field: name
             .price(category.getPrice())
             .quantity(category.getMaximumSlot())
             .soldQuantity(0) // can be calculated if needed

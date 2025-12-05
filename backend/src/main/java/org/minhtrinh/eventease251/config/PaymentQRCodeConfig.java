@@ -15,10 +15,10 @@ public class PaymentQRCodeConfig {
 
     @Data
     public static class QRCodeConfig {
-        private String storageDir;
+        private String storageDir;  // Payment/Order QR storage
         private Integer width;
         private Integer height;
-        private String baseUrl;
+        private String baseUrl;     // Payment/Order QR base URL
     }
 
     @Data
@@ -35,4 +35,5 @@ public class PaymentQRCodeConfig {
         private String apiUrl;
     }
 }
+
 

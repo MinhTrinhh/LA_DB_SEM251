@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, ArrowRight, Upload, Calendar as CalendarIcon, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Upload, Calendar as CalendarIcon, Plus, Trash2, ChevronDown, ChevronUp, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { eventsApi, CreateEventRequest } from "@/api/events.api";
+import { filesApi } from "@/api/files.api";
 import { formatVND } from "@/utils/currency";
 
 const CreateEvent = () => {
@@ -19,10 +20,15 @@ const CreateEvent = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Poster upload states
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [posterUrl, setPosterUrl] = useState<string>('');
+  const [posterPreview, setPosterPreview] = useState<string>('');
+  const [uploadingPoster, setUploadingPoster] = useState(false);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    image: null as File | null,
     venue: '',
     location: '',
     sessions: [
@@ -50,6 +56,73 @@ const CreateEvent = () => {
     if (step > 1) {
       setStep(step - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handlePosterUpload = async (file: File) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File",
+        description: "Please upload an image file (JPG, PNG, GIF, WebP)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Image must be less than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingPoster(true);
+
+    try {
+      // Upload to backend
+      const response = await filesApi.uploadPoster(file);
+
+      // Store the URL from backend
+      setPosterUrl(response.url);
+      setPosterFile(file);
+
+      // Create preview URL for display
+      const previewUrl = URL.createObjectURL(file);
+      setPosterPreview(previewUrl);
+
+      toast({
+        title: "Success",
+        description: "Poster uploaded successfully",
+      });
+    } catch (error) {
+      console.error('Failed to upload poster:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload poster. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingPoster(false);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handlePosterUpload(file);
+    }
+  };
+
+  const handleRemovePoster = () => {
+    setPosterFile(null);
+    setPosterUrl('');
+    if (posterPreview) {
+      URL.revokeObjectURL(posterPreview);
+      setPosterPreview('');
     }
   };
 
@@ -93,7 +166,7 @@ const CreateEvent = () => {
       const request: CreateEventRequest = {
         title: formData.title,
         description: formData.description,
-        posterUrl: formData.image ? URL.createObjectURL(formData.image) : undefined,
+        posterUrl: posterUrl || undefined, // Use the uploaded poster URL
         venueName: formData.venue,
         venueAddress: formData.location,
         regulations: [],
@@ -211,12 +284,51 @@ const CreateEvent = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Event Image *</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary transition-colors cursor-pointer">
-                  <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground mb-2">Drag & drop or click to upload</p>
-                  <p className="text-sm text-muted-foreground">Recommended: 1920x1080px, Max 5MB</p>
-                </div>
+                <Label>Event Poster</Label>
+                {!posterPreview ? (
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="poster-upload"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleFileInputChange}
+                      disabled={uploadingPoster}
+                    />
+                    <label
+                      htmlFor="poster-upload"
+                      className="block border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground mb-2">
+                        {uploadingPoster ? 'Uploading...' : 'Click to upload poster image'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Recommended: 1200x630px, Max 5MB (JPG, PNG, GIF, WebP)
+                      </p>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <img
+                      src={posterPreview}
+                      alt="Event poster preview"
+                      className="w-full h-64 object-cover rounded-lg border"
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="destructive"
+                      className="absolute top-2 right-2"
+                      onClick={handleRemovePoster}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {posterFile?.name} ({(posterFile?.size || 0 / 1024 / 1024).toFixed(2)} MB)
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -407,7 +519,7 @@ const CreateEvent = () => {
                                 </div>
 
                                 <div className="space-y-2">
-                                  <Label className="text-xs">Price ($) *</Label>
+                                  <Label className="text-xs">Price (VND) *</Label>
                                   <Input
                                     type="number"
                                     placeholder="0"
