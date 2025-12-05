@@ -1,7 +1,7 @@
 package org.minhtrinh.eventease251.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 import org.minhtrinh.eventease251.ultility.StringSequenceIdGenerator;
 
@@ -9,7 +9,12 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "participant_profile")
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = "user")
+@EqualsAndHashCode(exclude = "user")
 public class ParticipantProfile {
     @Id
     @GenericGenerator(

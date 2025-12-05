@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Calendar, MapPin, Clock, Plus, Minus, ArrowLeft, Maximize2 } from "lucide-react";
 import { eventsApi } from "@/api/events.api";
 import { BackendEvent, BackendSession } from "@/types/api.types";
+import { formatVND } from "@/utils/currency";
 
 interface SelectedTickets {
   [ticketCategoryId: number]: number; // ticketCategoryId -> quantity
@@ -194,7 +195,7 @@ const TicketSelection = () => {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-xl font-bold text-primary">
-                          {category.price === 0 ? 'Free' : `$${category.price}`}
+                          {category.price === 0 ? 'Free' : formatVND(category.price)}
                         </p>
                       </div>
                     </div>
@@ -251,7 +252,7 @@ const TicketSelection = () => {
                     <div key={categoryId} className="flex justify-between items-center text-sm">
                       <span className="text-muted-foreground">{ticketCategory?.categoryName} × {quantity}</span>
                       <span className="font-semibold">
-                        {price === 0 ? 'Free' : `$${(price * quantity).toFixed(2)}`}
+                        {price === 0 ? 'Free' : formatVND(price * quantity)}
                       </span>
                     </div>
                   );
@@ -263,7 +264,7 @@ const TicketSelection = () => {
             <div className="flex justify-between items-center mb-6">
               <span className="text-muted-foreground">Total</span>
               <span className="text-3xl font-bold text-primary">
-                {totalAmount === 0 ? 'Free' : `$${totalAmount.toFixed(2)}`}
+                {totalAmount === 0 ? 'Free' : formatVND(totalAmount)}
               </span>
             </div>
 

@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { eventsApi } from "@/api/events.api";
 import { BackendEvent, EventStatus } from "@/types/api.types";
 import { Event } from "@/data/mockEvents";
+import { formatVND } from "@/utils/currency";
 
 const OrganizerDashboard = () => {
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all');
@@ -41,12 +42,23 @@ const OrganizerDashboard = () => {
       id: backendEvent.eventId.toString(),
       title: backendEvent.title,
       date: backendEvent.startDateTime || backendEvent.startDate || '',
+      time: backendEvent.startDateTime ? new Date(backendEvent.startDateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'TBA',
       location: backendEvent.location || 'TBA',
+      venue: backendEvent.location || 'TBA',
       price: 0,
       category: 'Event',
       image: backendEvent.posterUrl || '/placeholder.svg',
       isFeatured: false,
-      description: backendEvent.generalIntroduction
+      isFree: false,
+      description: backendEvent.generalIntroduction,
+      organizerId: backendEvent.organizerId?.toString() || '0',
+      organizerName: 'Organizer',
+      ticketCategories: [],
+      organizer: {
+        name: 'Organizer',
+        email: '',
+        avatar: ''
+      }
     };
   };
 
@@ -127,7 +139,7 @@ const OrganizerDashboard = () => {
           />
           <StatsCard
             title="Total Revenue"
-            value={`$${mockOrganizerStats.totalRevenue.toLocaleString()}`}
+            value={formatVND(mockOrganizerStats.totalRevenue)}
             icon={DollarSign}
             iconColor="bg-cta/20 text-cta"
             trend={{ value: mockOrganizerStats.growthPercentage, isPositive: true }}

@@ -24,5 +24,6 @@ public class CreateOrderRequest {
     @NotNull(message = "Currency is required")
     private String currency;
     
-    private String paymentMethod; // For future payment integration
+    @NotNull(message = "Payment method ID is required")
+    private Long paymentMethodId; // Payment method selected by user
 }

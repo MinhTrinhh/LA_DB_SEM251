@@ -73,6 +73,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/events/public/**").permitAll()
+                .requestMatchers("/api/qr-codes/**").permitAll() // Allow public access to QR code images
                 .requestMatchers("/api/profiles/**").authenticated() // Profile endpoints require JWT
                 .requestMatchers("/api/users/**").authenticated() // User endpoints require JWT
                 .requestMatchers("/api/orders/**").authenticated() // Order endpoints require JWT (participant only)

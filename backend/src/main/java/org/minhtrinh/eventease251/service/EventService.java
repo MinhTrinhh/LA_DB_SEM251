@@ -15,7 +15,6 @@ import org.minhtrinh.eventease251.entity.OnlineSession;
 import org.minhtrinh.eventease251.entity.OfflineSession;
 import org.minhtrinh.eventease251.entity.TicketCategory;
 import org.minhtrinh.eventease251.repository.EventRepository;
-import org.minhtrinh.eventease251.repository.EventRepositoryCustomImpl;
 import org.minhtrinh.eventease251.repository.SessionRepository;
 import org.minhtrinh.eventease251.repository.UserRepository;
 import org.minhtrinh.eventease251.repository.TicketCategoryRepository;
@@ -30,7 +29,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class EventService {
 
-    private final EventRepositoryCustomImpl eventRepositoryCustom;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
@@ -62,7 +60,7 @@ public class EventService {
         }
         
         // Create the event using JDBC Template
-        Long eventId = eventRepositoryCustom.createEvent(request, organizerId);
+        Long eventId = eventRepository.createEvent(request, organizerId);
         
         log.info("Event created successfully with ID: {}", eventId);
         
@@ -78,7 +76,7 @@ public class EventService {
      */
     public List<EventDTO> getOrganizerEvents(Long organizerId) {
         log.info("EventService: Getting all events for organizer ID: {}", organizerId);
-        List<Event> events = eventRepository.findByOrganizer_UserId(organizerId);
+        List<Event> events = eventRepository.findByOrganizerProfile_User_UserId(organizerId);
         return events.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
@@ -87,7 +85,7 @@ public class EventService {
      */
     public List<EventDTO> getDraftEvents(Long organizerId) {
         log.info("EventService: Getting draft events for organizer ID: {}", organizerId);
-        List<Event> events = eventRepository.findByOrganizer_UserIdAndEventStatus(organizerId, EventStatus.DRAFT);
+        List<Event> events = eventRepository.findByOrganizerProfile_User_UserIdAndEventStatus(organizerId, EventStatus.DRAFT);
         return events.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
@@ -102,7 +100,7 @@ public class EventService {
                 .orElseThrow(() -> new RuntimeException("Event not found with ID: " + eventId));
 
         // Verify the event belongs to the organizer
-        if (!event.getOrganizer().getUserId().equals(organizerId)) {
+        if (!event.getOrganizerProfile().getUser().getUserId().equals(organizerId)) {
             throw new RuntimeException("You don't have permission to publish this event");
         }
 
@@ -127,7 +125,7 @@ public class EventService {
         dto.setTitle(event.getTitle());
         dto.setGeneralIntroduction(event.getGeneralIntroduction());
         dto.setEventStatus(event.getEventStatus());
-        dto.setOrganizerId(event.getOrganizer().getUserId());
+        dto.setOrganizerId(event.getOrganizerProfile().getUser().getUserId());
         dto.setStartDateTime(event.getStartDateTime());
         dto.setEndDateTime(event.getEndDateTime());
         dto.setTimestamp(event.getTimestamp());

@@ -23,10 +23,10 @@ public class Event {
     @Column(name = "event_status")
     private EventStatus eventStatus;
 
-    // References User who has OrganizerProfile (organizer_id is user_id)
+    // References OrganizerProfile (organizer_id references organizer_profile.user_id)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organizer_id", referencedColumnName = "user_id", nullable = false)
-    private User organizer;
+    private OrganizerProfile organizerProfile;
 
     @Column(name = "start_date_time")
     private LocalDateTime startDateTime;

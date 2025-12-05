@@ -84,10 +84,12 @@ public class ProfileService {
 
         user.setOrganizerProfile(profile);
 
-        // Add organizer role
-        user.addRole(Role.ROLE_ORGANIZER);
-
-        User savedUser = userRepository.save(user);
+        // Save user with organizer profile first
+        User savedUser = userRepository.saveAndFlush(user);
+        
+        // Add organizer role (userId is already set)
+        savedUser.addRole(Role.ROLE_ORGANIZER);
+        savedUser = userRepository.save(savedUser);
 
         // Generate new token with updated roles
         String token = jwtTokenProvider.generateToken(savedUser);

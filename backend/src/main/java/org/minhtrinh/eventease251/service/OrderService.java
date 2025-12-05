@@ -7,18 +7,9 @@ import org.minhtrinh.eventease251.dto.OrderDTO;
 import org.minhtrinh.eventease251.dto.TicketDTO;
 import org.minhtrinh.eventease251.dto.TicketCategoryDTO;
 import org.minhtrinh.eventease251.dto.EventDTO;
-import org.minhtrinh.eventease251.dto.SessionDTO;
-import org.minhtrinh.eventease251.entity.Order;
-import org.minhtrinh.eventease251.entity.Ticket;
-import org.minhtrinh.eventease251.entity.TicketCategory;
-import org.minhtrinh.eventease251.entity.User;
-import org.minhtrinh.eventease251.entity.Session;
-import org.minhtrinh.eventease251.entity.SessionId;
-import org.minhtrinh.eventease251.repository.OrderRepository;
-import org.minhtrinh.eventease251.repository.TicketRepository;
-import org.minhtrinh.eventease251.repository.TicketCategoryRepository;
-import org.minhtrinh.eventease251.repository.UserRepository;
-import org.minhtrinh.eventease251.repository.SessionRepository;
+import org.minhtrinh.eventease251.dto.PaymentMethodDTO;
+import org.minhtrinh.eventease251.entity.*;
+import org.minhtrinh.eventease251.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -40,7 +32,10 @@ public class OrderService {
     private final TicketCategoryRepository ticketCategoryRepository;
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
-
+    private final PaymentMethodRepository paymentMethodRepository;
+    private final PaidByRepository paidByRepository;
+    private final QRCodeService qrCodeService;
+    private final PaymentMethodService paymentMethodService;
     /**
      * Create a new order with tickets
      * Validates user is a participant and creates order with tickets transactionally
@@ -63,7 +58,7 @@ public class OrderService {
         sessionId.setEvent(request.getEventId());
         
         // Validate session exists
-        Session session = sessionRepository.findById(sessionId)
+        sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new RuntimeException("Session not found"));
         
         // Calculate total amount and validate ticket categories
@@ -99,13 +94,18 @@ public class OrderService {
         
         // Create order
         Order order = new Order();
-        order.setOrderStatus("PENDING"); // Initial status
-        order.setCurrency(request.getCurrency());
+        order.setOrderStatus(OrderStatus.AWAITING_PAYMENT); // Initial status (enum)
+        order.setCurrency(OrderCurrency.valueOf(request.getCurrency())); // Convert String to enum
         order.setAmountOfMoney(totalAmount);
-        order.setParticipant(user);
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
-        
+
+        // Set participant profile reference
+        if (user.getParticipantProfile() == null) {
+            throw new RuntimeException("User must have a participant profile to create an order");
+        }
+        order.setParticipantProfile(user.getParticipantProfile());
+
         Order savedOrder = orderRepository.save(order);
         log.info("OrderService: Created order with ID: {}", savedOrder.getOrderId());
         
@@ -131,7 +131,7 @@ public class OrderService {
                 ticket.setQrCodeUrl(qrCodeUrl);
                 ticket.setCreatedAt(LocalDateTime.now());
                 ticket.setUpdatedAt(LocalDateTime.now());
-                
+
                 tickets.add(ticket);
             }
         }
@@ -157,6 +157,9 @@ public class OrderService {
                     quantity, category.getCategoryName(), categoryId, category.getMaximumSlot());
         }
         
+        // Generate payment QR code and create PaidBy record
+        PaidBy paidBy = createPaymentRecord(savedOrder, request.getPaymentMethodId());
+
         // Convert to DTO
         return convertToOrderDTO(savedOrder, savedTickets);
     }
@@ -176,6 +179,115 @@ public class OrderService {
     }
     
     /**
+     * Confirm payment for an order (manual confirmation)
+     * Updates order status from AWAITING_PAYMENT to PAID
+     */
+    @Transactional
+    public OrderDTO confirmPayment(Long orderId, Long userId) {
+        log.info("Confirming payment for order {} by user {}", orderId, userId);
+
+        // Find order and verify ownership
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+        // Verify order belongs to user
+        if (!order.getParticipantProfile().getUser().getUserId().equals(userId)) {
+            throw new RuntimeException("Unauthorized: Order does not belong to user");
+        }
+
+        // Verify order is in AWAITING_PAYMENT status
+        if (order.getOrderStatus() != OrderStatus.AWAITING_PAYMENT) {
+            throw new RuntimeException("Order is not in AWAITING_PAYMENT status. Current status: " + order.getOrderStatus());
+        }
+
+        // Update order status to PAID
+        order.setOrderStatus(OrderStatus.PAID);
+        order.setUpdatedAt(LocalDateTime.now());
+
+        Order savedOrder = orderRepository.save(order);
+        log.info("Order {} status updated to PAID", orderId);
+
+        // Return updated order
+        return convertToOrderDTOWithEvent(savedOrder);
+    }
+
+    /**
+     * Cancel an order (for organizer or admin)
+     * Updates order status to CANCELED and deletes QR code
+     */
+    @Transactional
+    public void cancelOrder(Long orderId) {
+        log.info("Cancelling order {}", orderId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+        // Only allow cancellation if not already paid
+        if (order.getOrderStatus() == OrderStatus.PAID) {
+            throw new RuntimeException("Cannot cancel a paid order. Please process refund instead.");
+        }
+
+        // Update order status
+        order.setOrderStatus(OrderStatus.CANCELED);
+        order.setUpdatedAt(LocalDateTime.now());
+        orderRepository.save(order);
+
+        // Delete QR code if exists
+        paidByRepository.findByOrderId(orderId).ifPresent(paidBy -> {
+            if (paidBy.getQrCodeUrl() != null) {
+                qrCodeService.deleteQRCode(paidBy.getQrCodeUrl());
+            }
+        });
+
+        log.info("Order {} cancelled successfully", orderId);
+    }
+
+    /**
+     * Create payment record with QR code for the order
+     */
+    private PaidBy createPaymentRecord(Order order, Long paymentMethodId) {
+        log.info("Creating payment record for order {}", order.getOrderId());
+
+        // Validate order ID is not null
+        if (order.getOrderId() == null) {
+            throw new RuntimeException("Order ID is null - order must be saved before creating payment record");
+        }
+
+        // Validate payment method exists
+        PaymentMethod paymentMethod = paymentMethodRepository.findById(paymentMethodId)
+                .orElseThrow(() -> new RuntimeException("Payment method not found with ID: " + paymentMethodId));
+
+        // Generate payment QR code if amount > 0
+        String qrCodeUrl = null;
+        if (order.getAmountOfMoney().compareTo(BigDecimal.ZERO) > 0) {
+            String description = qrCodeService.generatePaymentDescription(order.getOrderId());
+            qrCodeUrl = qrCodeService.generateVietQRCode(
+                order.getOrderId(),
+                order.getAmountOfMoney(),
+                description
+            );
+            log.info("Generated payment QR code for order {}: {}", order.getOrderId(), qrCodeUrl);
+        } else {
+            log.info("Order {} has zero amount, skipping QR code generation", order.getOrderId());
+        }
+
+        // Create PaidBy record with explicit orderId
+        PaidBy paidBy = new PaidBy();
+        paidBy.setOrderId(order.getOrderId()); // Explicitly set the ID
+        paidBy.setPaymentMethod(paymentMethod);
+        paidBy.setQrCodeUrl(qrCodeUrl);
+        paidBy.setTimestamp(LocalDateTime.now());
+
+        // Don't set the order relationship here as it's mapped with insertable=false, updatable=false
+
+        PaidBy savedPaidBy = paidByRepository.save(paidBy);
+        log.info("Created payment record for order {} with transaction ID: {}",
+                order.getOrderId(), savedPaidBy.getTransactionId());
+
+        return savedPaidBy;
+    }
+
+    /**
      * Generate QR code URL for a ticket
      */
     private String generateQRCodeUrl(Long orderId, Long categoryId, int ticketIndex) {
@@ -190,25 +302,39 @@ public class OrderService {
     private OrderDTO convertToOrderDTO(Order order, List<Ticket> tickets) {
         OrderDTO dto = new OrderDTO();
         dto.setOrderId(order.getOrderId());
-        dto.setOrderStatus(order.getOrderStatus());
-        dto.setCurrency(order.getCurrency());
+        dto.setOrderStatus(order.getOrderStatus().name()); // Convert enum to String
+        dto.setCurrency(order.getCurrency().name()); // Convert enum to String
         dto.setAmountOfMoney(order.getAmountOfMoney());
-        dto.setUserId(order.getParticipant().getUserId());
-        // User has participantProfile with fullName
-        String userName = order.getParticipant().getParticipantProfile() != null 
-            ? order.getParticipant().getParticipantProfile().getFullName() 
+        dto.setUserId(order.getParticipantProfile().getUser().getUserId());
+
+        // Get user name from participant profile
+        String userName = order.getParticipantProfile().getFullName() != null
+            ? order.getParticipantProfile().getFullName()
             : "User";
         dto.setUserName(userName);
-        dto.setUserEmail(order.getParticipant().getEmailAddress());
+        dto.setUserEmail(order.getParticipantProfile().getUser().getEmailAddress());
         dto.setCreatedAt(order.getCreatedAt());
         dto.setUpdatedAt(order.getUpdatedAt());
-        
+
         // Convert tickets
         List<TicketDTO> ticketDTOs = tickets.stream()
                 .map(this::convertToTicketDTO)
                 .collect(Collectors.toList());
         dto.setTickets(ticketDTOs);
         
+        // Get payment information from PaidBy
+        paidByRepository.findByOrderId(order.getOrderId()).ifPresent(paidBy -> {
+            dto.setQrCodeUrl(paidBy.getQrCodeUrl());
+            dto.setPaymentDescription(qrCodeService.generatePaymentDescription(order.getOrderId()));
+
+            // Convert payment method to DTO
+            PaymentMethod pm = paidBy.getPaymentMethod();
+            if (pm != null) {
+                PaymentMethodDTO pmDto = paymentMethodService.convertToDTO(pm);
+                dto.setPaymentMethod(pmDto);
+            }
+        });
+
         return dto;
     }
     
@@ -228,12 +354,12 @@ public class OrderService {
             eventDTO.setTitle(session.getEvent().getTitle());
             eventDTO.setGeneralIntroduction(session.getEvent().getGeneralIntroduction());
             eventDTO.setEventStatus(session.getEvent().getEventStatus());
-            eventDTO.setOrganizerId(session.getEvent().getOrganizer().getUserId());
+            eventDTO.setOrganizerId(session.getEvent().getOrganizerProfile().getUser().getUserId());
             eventDTO.setStartDateTime(session.getEvent().getStartDateTime());
             eventDTO.setEndDateTime(session.getEvent().getEndDateTime());
             eventDTO.setPosterUrl(session.getEvent().getPosterUrl());
             // Event doesn't have location field - will come from venue or session
-            
+
             dto.setEvent(eventDTO);
         }
         
@@ -247,11 +373,11 @@ public class OrderService {
         TicketDTO dto = new TicketDTO();
         dto.setTicketId(ticket.getTicketId());
         dto.setQrCodeUrl(ticket.getQrCodeUrl());
-        dto.setUsedFlag(ticket.getUsedFlag());
-        dto.setOrderId(ticket.getOrder().getOrderId());
+        dto.setUsedFlag(ticket.isUsedFlag()); // Use isUsedFlag() for primitive boolean
+        dto.setOrderId(ticket.getOrder() != null ? ticket.getOrder().getOrderId() : null);
         dto.setCreatedAt(ticket.getCreatedAt());
         dto.setUpdatedAt(ticket.getUpdatedAt());
-        
+
         // Convert ticket category using builder
         TicketCategory category = ticket.getCategory();
         TicketCategoryDTO categoryDTO = TicketCategoryDTO.builder()
