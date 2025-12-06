@@ -281,4 +281,48 @@ public class EventEditRepository {
 
         jdbcCall.execute(params);
     }
+
+    /**
+     * Delete event using sp_DeleteEvent
+     * Validates ownership and checks for sold tickets before deletion
+     */
+    public void deleteEvent(Long eventId, Long organizerId) {
+        log.info("Deleting event {} by organizer {}", eventId, organizerId);
+
+        SimpleJdbcCall jdbcCall = new SimpleJdbcCall(jdbcTemplate)
+                .withProcedureName("sp_DeleteEvent")
+                .declareParameters(
+                        new SqlParameter("EventId", Types.BIGINT),
+                        new SqlParameter("OrganizerId", Types.BIGINT)
+                );
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("EventId", eventId)
+                .addValue("OrganizerId", organizerId);
+
+        jdbcCall.execute(params);
+    }
+
+    /**
+     * Delete session using sp_DeleteSession
+     * Validates ownership, checks for sold tickets, and ensures it's not the last session
+     */
+    public void deleteSession(Long sessionId, Long eventId, Long organizerId) {
+        log.info("Deleting session {} from event {} by organizer {}", sessionId, eventId, organizerId);
+
+        SimpleJdbcCall jdbcCall = new SimpleJdbcCall(jdbcTemplate)
+                .withProcedureName("sp_DeleteSession")
+                .declareParameters(
+                        new SqlParameter("SessionId", Types.BIGINT),
+                        new SqlParameter("EventId", Types.BIGINT),
+                        new SqlParameter("OrganizerId", Types.BIGINT)
+                );
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("SessionId", sessionId)
+                .addValue("EventId", eventId)
+                .addValue("OrganizerId", organizerId);
+
+        jdbcCall.execute(params);
+    }
 }

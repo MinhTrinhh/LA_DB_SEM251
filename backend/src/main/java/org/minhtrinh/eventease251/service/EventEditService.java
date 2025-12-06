@@ -107,4 +107,26 @@ public class EventEditService {
         log.info("Deleting ticket category {}", categoryId);
         eventEditRepository.deleteTicketCategory(categoryId, organizerId);
     }
+
+    /**
+     * Delete an event
+     * Uses stored procedure sp_DeleteEvent
+     * Validates ownership and checks for sold tickets before deletion
+     */
+    @Transactional
+    public void deleteEvent(Long eventId, Long organizerId) {
+        log.info("Deleting event {} by organizer {}", eventId, organizerId);
+        eventEditRepository.deleteEvent(eventId, organizerId);
+    }
+
+    /**
+     * Delete a session
+     * Uses stored procedure sp_DeleteSession
+     * Validates ownership, checks for sold tickets, and ensures it's not the last session
+     */
+    @Transactional
+    public void deleteSession(Long sessionId, Long eventId, Long organizerId) {
+        log.info("Deleting session {} from event {} by organizer {}", sessionId, eventId, organizerId);
+        eventEditRepository.deleteSession(sessionId, eventId, organizerId);
+    }
 }
