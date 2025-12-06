@@ -40,7 +40,7 @@ const Checkout = () => {
     name: "",
     email: "",
     phone: "",
-    paymentMethod: "credit-card"
+    paymentMethod: "bank-transfer"
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -140,7 +140,7 @@ const Checkout = () => {
         sessionId: state.sessionId,
         ticketQuantities: selectedTickets,
         currency: "VND",
-        paymentMethodId: 6 // MB Bank - default payment method
+        paymentMethodId: 6 // Default: VNPay e-wallet (generates VietQR)
       });
 
       toast({
@@ -259,32 +259,75 @@ const Checkout = () => {
                 onValueChange={(value) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
                 className="space-y-3"
               >
-                <div className="flex items-center space-x-3 p-4 rounded-lg border border-border hover:bg-foreground/5 cursor-pointer">
-                  <RadioGroupItem value="credit-card" id="credit-card" />
-                  <Label htmlFor="credit-card" className="flex items-center gap-3 cursor-pointer flex-1">
-                    <CreditCard className="w-5 h-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Credit / Debit Card</p>
-                      <p className="text-sm text-muted-foreground">Pay securely with your card</p>
-                    </div>
-                  </Label>
+                {/* Bank Transfer Section */}
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-muted-foreground">Bank Transfer</p>
+                  
+                  <div className="flex items-center space-x-3 p-4 rounded-lg border border-border hover:bg-foreground/5 cursor-pointer">
+                    <RadioGroupItem value="bank-transfer" id="bank-transfer" />
+                    <Label htmlFor="bank-transfer" className="flex items-center gap-3 cursor-pointer flex-1">
+                      <CreditCard className="w-5 h-5 text-primary" />
+                      <div>
+                        <p className="font-medium">VietQR Bank Transfer</p>
+                        <p className="text-sm text-muted-foreground">Vietcombank, Techcombank, BIDV, ACB, MBBank</p>
+                      </div>
+                    </Label>
+                  </div>
                 </div>
 
-                <div className="flex items-center space-x-3 p-4 rounded-lg border border-border hover:bg-foreground/5 cursor-pointer">
-                  <RadioGroupItem value="digital-wallet" id="digital-wallet" />
-                  <Label htmlFor="digital-wallet" className="flex items-center gap-3 cursor-pointer flex-1">
-                    <Wallet className="w-5 h-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Digital Wallet</p>
-                      <p className="text-sm text-muted-foreground">Apple Pay, Google Pay, PayPal</p>
-                    </div>
-                  </Label>
+                {/* E-wallet Section */}
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-muted-foreground">Digital Wallets</p>
+                  
+                  <div className="flex items-center space-x-3 p-4 rounded-lg border border-border hover:bg-foreground/5 cursor-pointer">
+                    <RadioGroupItem value="momo" id="momo" />
+                    <Label htmlFor="momo" className="flex items-center gap-3 cursor-pointer flex-1">
+                      <Wallet className="w-5 h-5 text-pink-500" />
+                      <div>
+                        <p className="font-medium">MoMo</p>
+                        <p className="text-sm text-muted-foreground">MoMo E-Wallet</p>
+                      </div>
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-3 p-4 rounded-lg border border-border hover:bg-foreground/5 cursor-pointer">
+                    <RadioGroupItem value="zalopay" id="zalopay" />
+                    <Label htmlFor="zalopay" className="flex items-center gap-3 cursor-pointer flex-1">
+                      <Wallet className="w-5 h-5 text-blue-500" />
+                      <div>
+                        <p className="font-medium">ZaloPay</p>
+                        <p className="text-sm text-muted-foreground">ZaloPay E-Wallet</p>
+                      </div>
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-3 p-4 rounded-lg border border-border hover:bg-foreground/5 cursor-pointer">
+                    <RadioGroupItem value="vnpay" id="vnpay" />
+                    <Label htmlFor="vnpay" className="flex items-center gap-3 cursor-pointer flex-1">
+                      <Wallet className="w-5 h-5 text-orange-500" />
+                      <div>
+                        <p className="font-medium">VNPay</p>
+                        <p className="text-sm text-muted-foreground">VNPay E-Wallet</p>
+                      </div>
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-3 p-4 rounded-lg border border-border hover:bg-foreground/5 cursor-pointer">
+                    <RadioGroupItem value="shopeepay" id="shopeepay" />
+                    <Label htmlFor="shopeepay" className="flex items-center gap-3 cursor-pointer flex-1">
+                      <Wallet className="w-5 h-5 text-orange-600" />
+                      <div>
+                        <p className="font-medium">ShopeePay</p>
+                        <p className="text-sm text-muted-foreground">ShopeePay E-Wallet</p>
+                      </div>
+                    </Label>
+                  </div>
                 </div>
               </RadioGroup>
 
               <div className="mt-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  💡 This is a demo checkout. No actual payment will be processed.
+                  💡 All payment methods use VietQR. You will receive a QR code after placing your order. Although the bank account is real, payment is optional - this is for demonstration purposes only.
                 </p>
               </div>
             </Card>

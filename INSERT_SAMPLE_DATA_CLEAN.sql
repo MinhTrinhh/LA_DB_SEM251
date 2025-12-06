@@ -424,10 +424,10 @@ GO
 PRINT 'Inserting orders...';
 
 INSERT INTO [order] (order_status, currency, amount_of_money, user_id, created_at, updated_at) VALUES
-('PENDING', 'VND', 500000, 1, '2024-12-01 10:30:00', '2024-12-01 10:30:00'),
-('PENDING', 'VND', 1600000, 1, '2024-12-05 14:20:00', '2024-12-05 14:20:00'),
-('PENDING', 'VND', 2500000, 2, '2024-12-03 16:45:00', '2024-12-03 16:45:00'),
-('PENDING', 'VND', 1200000, 4, '2024-12-04 15:30:00', '2024-12-04 15:30:00');
+('AWAITING_PAYMENT', 'VND', 500000, 1, '2024-12-01 10:30:00', '2024-12-01 10:30:00'),
+('AWAITING_PAYMENT', 'VND', 1600000, 1, '2024-12-05 14:20:00', '2024-12-05 14:20:00'),
+('PAID', 'VND', 2500000, 2, '2024-12-03 16:45:00', '2024-12-03 16:45:00'),
+('AWAITING_PAYMENT', 'VND', 1200000, 4, '2024-12-04 15:30:00', '2024-12-04 15:30:00');
 
 GO
 
@@ -452,10 +452,15 @@ GO
 
 PRINT 'Inserting payment methods...';
 
+-- Payment Methods 1-3: Banks
+-- Payment Methods 4-6: E-wallets
 INSERT INTO payment_method (charged_fee, fee_payer) VALUES
-(0.00, 'ORGANIZER'),
-(2.50, 'PARTICIPANT'),
-(1.50, 'ORGANIZER');
+(0.00, 'ORGANIZER'),   -- Method 1: Bank (Vietcombank)
+(0.00, 'ORGANIZER'),   -- Method 2: Bank (Techcombank)
+(0.00, 'ORGANIZER'),   -- Method 3: Bank (BIDV)
+(2.50, 'PARTICIPANT'), -- Method 4: E-wallet (MoMo)
+(2.50, 'PARTICIPANT'), -- Method 5: E-wallet (ZaloPay)
+(2.50, 'PARTICIPANT'); -- Method 6: E-wallet (VNPay)
 
 GO
 
@@ -467,15 +472,13 @@ PRINT 'Inserting banks and e-wallets...';
 
 INSERT INTO bank (bank_id, bank_name, method_id) VALUES
 (1, N'Vietcombank', 1),
-(2, N'Techcombank', 1),
-(3, N'BIDV', 1),
-(4, N'ACB', 1);
+(2, N'Techcombank', 2),
+(3, N'BIDV', 3);
 
 INSERT INTO e_wallet (e_wallet_id, e_wallet_name, method_id) VALUES
-(1, N'MoMo', 2),
-(2, N'ZaloPay', 2),
-(3, N'VNPay', 2),
-(4, N'ShopeePay', 2);
+(1, N'MoMo', 4),
+(2, N'ZaloPay', 5),
+(3, N'VNPay', 6);
 
 GO
 
@@ -486,10 +489,10 @@ GO
 PRINT 'Inserting payment transactions...';
 
 INSERT INTO paid_by (order_id, method_id, qr_code_url, timestamp) VALUES
-(1, 2, 'https://api.qrserver.com/v1/create-qr-code/?data=PAY-001-MOMO&size=300x300', '2024-12-01 10:31:00'),
-(2, 1, 'https://api.qrserver.com/v1/create-qr-code/?data=PAY-002-BANK&size=300x300', '2024-12-05 14:21:00'),
-(3, 2, 'https://api.qrserver.com/v1/create-qr-code/?data=PAY-003-VNPAY&size=300x300', '2024-12-03 16:46:00'),
-(4, 2, 'https://api.qrserver.com/v1/create-qr-code/?data=PAY-004-ZALOPAY&size=300x300', '2024-12-04 15:31:00');
+(1, 4, 'https://api.qrserver.com/v1/create-qr-code/?data=PAY-001-MOMO&size=300x300', '2024-12-01 10:31:00'),      -- MoMo
+(2, 1, 'https://api.qrserver.com/v1/create-qr-code/?data=PAY-002-BANK&size=300x300', '2024-12-05 14:21:00'),      -- Vietcombank
+(3, 6, 'https://api.qrserver.com/v1/create-qr-code/?data=PAY-003-VNPAY&size=300x300', '2024-12-03 16:46:00'),     -- VNPay
+(4, 5, 'https://api.qrserver.com/v1/create-qr-code/?data=PAY-004-ZALOPAY&size=300x300', '2024-12-04 15:31:00');  -- ZaloPay
 
 GO
 
