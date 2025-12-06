@@ -134,4 +134,24 @@ export const editEventApi = {
     const response = await apiClient.delete<{ message: string }>(`/api/events/edit/ticket-category/${categoryId}`);
     return response.data;
   },
+
+  /**
+   * Delete event (requires ROLE_ORGANIZER)
+   * Uses stored procedure: sp_DeleteEvent
+   * Validates ownership and checks for sold tickets before deletion
+   */
+  deleteEvent: async (eventId: number): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(`/api/events/edit/${eventId}`);
+    return response.data;
+  },
+
+  /**
+   * Delete session (requires ROLE_ORGANIZER)
+   * Uses stored procedure: sp_DeleteSession
+   * Validates ownership, checks for sold tickets, and ensures it's not the last session
+   */
+  deleteSession: async (eventId: number, sessionId: number): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(`/api/events/edit/session/${eventId}/${sessionId}`);
+    return response.data;
+  },
 };

@@ -169,4 +169,56 @@ public class EventEditController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
+
+    /**
+     * Delete event
+     * Uses stored procedure: sp_DeleteEvent
+     * Validates ownership and checks for sold tickets before deletion
+     */
+    @DeleteMapping("/{eventId}")
+    @PreAuthorize("hasRole('ROLE_ORGANIZER')")
+    public ResponseEntity<?> deleteEvent(@PathVariable Long eventId) {
+        try {
+            Long organizerId = JwtTokenProvider.getAuthenticatedUserId();
+            log.info("Deleting event {}", eventId);
+
+            eventEditService.deleteEvent(eventId, organizerId);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Event deleted successfully");
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            log.error("Error deleting event: {}", e.getMessage());
+            ErrorResponse errorResponse = new ErrorResponse();
+            errorResponse.setMessage(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
+
+    /**
+     * Delete session
+     * Uses stored procedure: sp_DeleteSession
+     * Validates ownership, checks for sold tickets, and ensures it's not the last session
+     */
+    @DeleteMapping("/session/{eventId}/{sessionId}")
+    @PreAuthorize("hasRole('ROLE_ORGANIZER')")
+    public ResponseEntity<?> deleteSession(
+            @PathVariable Long eventId,
+            @PathVariable Long sessionId) {
+        try {
+            Long organizerId = JwtTokenProvider.getAuthenticatedUserId();
+            log.info("Deleting session {} from event {}", sessionId, eventId);
+
+            eventEditService.deleteSession(sessionId, eventId, organizerId);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Session deleted successfully");
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            log.error("Error deleting session: {}", e.getMessage());
+            ErrorResponse errorResponse = new ErrorResponse();
+            errorResponse.setMessage(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
 }

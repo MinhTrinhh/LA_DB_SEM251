@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, X, ArrowLeft, Loader2, AlertCircle, Database } from 'lucide-react';
+import { Plus, X, ArrowLeft, Loader2, AlertCircle, Database, Trash2 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { OrganizerPanel } from '@/components/OrganizerPanel';
@@ -9,6 +9,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { 
   editEventApi, 
@@ -55,6 +65,8 @@ export default function EditEventPage() {
   const [sessions, setSessions] = useState<LocalSession[]>([]);
   const [ticketCategories, setTicketCategories] = useState<LocalTicketCategory[]>([]);
   const [deletedCategories, setDeletedCategories] = useState<number[]>([]);
+  const [deletedSessions, setDeletedSessions] = useState<{sessionId: number, eventId: number}[]>([]);
+  const [sessionToDelete, setSessionToDelete] = useState<{sessionId: number, eventId: number, index: number} | null>(null);
 
   // Fetch event data on mount
   useEffect(() => {
@@ -148,6 +160,61 @@ export default function EditEventPage() {
     const updated = [...sessions];
     updated[index] = { ...updated[index], [field]: value };
     setSessions(updated);
+  };
+
+  const handleDeleteSessionClick = (sessionId: number, eventId: number, index: number) => {
+    // Check if this is the last session
+    if (sessions.length <= 1) {
+      toast({
+        title: "Cannot delete",
+        description: "Cannot delete the last session. Delete the entire event instead.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if session has sold tickets
+    const sessionCategories = ticketCategories.filter(tc => tc.sessionId === sessionId);
+    const totalSold = sessionCategories.reduce((sum, tc) => sum + tc.soldCount, 0);
+    
+    if (totalSold > 0) {
+      toast({
+        title: "Cannot delete",
+        description: `This session has ${totalSold} sold tickets. Please cancel tickets and process refunds first.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setSessionToDelete({ sessionId, eventId, index });
+  };
+
+  const handleConfirmDeleteSession = async () => {
+    if (!sessionToDelete) return;
+    
+    try {
+      // Call API to delete session immediately
+      await editEventApi.deleteSession(sessionToDelete.eventId, sessionToDelete.sessionId);
+      
+      // Remove session from local state
+      setSessions(sessions.filter((_, i) => i !== sessionToDelete.index));
+      
+      // Remove ticket categories associated with this session
+      setTicketCategories(ticketCategories.filter(tc => tc.sessionId !== sessionToDelete.sessionId));
+      
+      toast({
+        title: "Session Deleted",
+        description: "Session has been deleted successfully.",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : 'Failed to delete session',
+        variant: "destructive",
+      });
+    } finally {
+      setSessionToDelete(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -306,7 +373,7 @@ export default function EditEventPage() {
             <AlertDescription className="text-blue-200">
               <strong>Database Integration:</strong> This page uses SQL stored procedures 
               (sp_GetEventForEdit, sp_UpdateEventBasicInfo, sp_UpdateSession, sp_UpdateTicketCategory, 
-              sp_AddTicketCategory, sp_DeleteTicketCategory) and triggers for data validation.
+              sp_AddTicketCategory, sp_DeleteTicketCategory, sp_DeleteSession) and function (fn_GetSessionSoldTickets) for data validation.
             </AlertDescription>
           </Alert>
 
@@ -380,9 +447,23 @@ export default function EditEventPage() {
               <div className="space-y-6">
                 {sessions.map((session, sessionIndex) => (
                   <div key={session.sessionId} className="p-4 glass-border rounded-lg">
-                    <h3 className="text-lg font-semibold mb-4">
-                      Session {sessionIndex + 1} ({session.sessionType})
-                    </h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">
+                        Session {sessionIndex + 1} ({session.sessionType})
+                      </h3>
+                      {sessions.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteSessionClick(session.sessionId, session.eventId, sessionIndex)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete Session
+                        </Button>
+                      )}
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
@@ -566,6 +647,28 @@ export default function EditEventPage() {
       </div>
 
       <Footer />
+
+      {/* Delete Session Confirmation Dialog */}
+      <AlertDialog open={!!sessionToDelete} onOpenChange={() => setSessionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Session</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this session? This action cannot be undone.
+              All ticket categories associated with this session will also be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteSession}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

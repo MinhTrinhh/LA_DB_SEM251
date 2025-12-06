@@ -2,16 +2,32 @@ import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { Calendar, BarChart3, Edit, UserCheck, Plus, Settings, FileText, Loader2 } from "lucide-react";
+import { Calendar, BarChart3, Edit, UserCheck, Plus, Settings, FileText, Loader2, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { eventsApi } from "@/api/events.api";
+import { editEventApi } from "@/api/editEvent.api";
 import { BackendEvent, EventStatus } from "@/types/api.types";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const OrganizerDashboard = () => {
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all');
   const [myEvents, setMyEvents] = useState<BackendEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<BackendEvent | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchMyEvents = async () => {
@@ -45,6 +61,40 @@ const OrganizerDashboard = () => {
     if (filter === 'past' && eventDate) return eventDate <= now;
     return true;
   });
+
+  // Handle delete event
+  const handleDeleteClick = (event: BackendEvent) => {
+    setEventToDelete(event);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!eventToDelete) return;
+
+    try {
+      setDeleting(true);
+      await editEventApi.deleteEvent(eventToDelete.eventId);
+      
+      // Remove the deleted event from the list
+      setMyEvents(myEvents.filter(e => e.eventId !== eventToDelete.eventId));
+      
+      toast({
+        title: "Event Deleted",
+        description: `"${eventToDelete.title}" has been successfully deleted.`,
+      });
+    } catch (err: any) {
+      console.error('Failed to delete event:', err);
+      toast({
+        title: "Delete Failed",
+        description: err.response?.data?.message || 'Failed to delete event. It may have sold tickets.',
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setEventToDelete(null);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -191,8 +241,8 @@ const OrganizerDashboard = () => {
                           </p>
                         )}
 
-                        {/* 3 Action Buttons */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {/* 4 Action Buttons */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                           <Button
                             variant="outline"
                             className="gap-2 justify-start"
@@ -223,6 +273,14 @@ const OrganizerDashboard = () => {
                               Check-in
                             </Link>
                           </Button>
+                          <Button
+                            variant="outline"
+                            className="gap-2 justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteClick(event)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -235,6 +293,40 @@ const OrganizerDashboard = () => {
       </main>
 
       <Footer />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{eventToDelete?.title}"? This action cannot be undone.
+              {eventToDelete && (
+                <span className="block mt-2 text-sm text-muted-foreground">
+                  Note: Events with sold tickets cannot be deleted. You will need to cancel the event and process refunds first.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Event'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
