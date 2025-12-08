@@ -1144,99 +1144,99 @@ END;
 GO
 
 
--- =============================================
--- V7: Event DateTime Validation Trigger
--- =============================================
--- Purpose: Ensure event start and end times are in the future
--- Created: 2024-12-05
--- =============================================
--- Create trigger to validate event date/time
-CREATE TRIGGER trg_ValidateEventDateTime
-ON event
-AFTER INSERT, UPDATE
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    DECLARE @EventId BIGINT;
-    DECLARE @Title NVARCHAR(255);
-    DECLARE @StartDateTime DATETIME;
-    DECLARE @EndDateTime DATETIME;
-    DECLARE @CurrentDateTime DATETIME = GETDATE();
-    DECLARE @ErrorMsg NVARCHAR(500);
-
-    -- Check each inserted/updated event
-    -- Use LOCAL cursor to avoid naming conflicts
-    DECLARE event_cursor CURSOR LOCAL FOR
-        SELECT event_id, title, start_date_time, end_date_time
-        FROM inserted;
-
-    OPEN event_cursor;
-    FETCH NEXT FROM event_cursor INTO @EventId, @Title, @StartDateTime, @EndDateTime;
-
-    WHILE @@FETCH_STATUS = 0
-    BEGIN
-        -- Validate start_date_time is in the future
-        IF @StartDateTime <= @CurrentDateTime
-        BEGIN
-            CLOSE event_cursor;
-            DEALLOCATE event_cursor;
-
-            SET @ErrorMsg = CONCAT(
-                'Event validation failed: Start date/time must be in the future. ',
-                'Event "', @Title, '" (ID: ', @EventId, ') ',
-                'has start time: ', CONVERT(VARCHAR, @StartDateTime, 120), ', ',
-                'which is not after current time: ', CONVERT(VARCHAR, @CurrentDateTime, 120)
-            );
-
-            RAISERROR(@ErrorMsg, 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-
-        -- Validate end_date_time is after start_date_time
-        IF @EndDateTime <= @StartDateTime
-        BEGIN
-            CLOSE event_cursor;
-            DEALLOCATE event_cursor;
-
-            SET @ErrorMsg = CONCAT(
-                'Event validation failed: End date/time must be after start date/time. ',
-                'Event "', @Title, '" (ID: ', @EventId, ') ',
-                'has start time: ', CONVERT(VARCHAR, @StartDateTime, 120), ', ',
-                'end time: ', CONVERT(VARCHAR, @EndDateTime, 120)
-            );
-
-            RAISERROR(@ErrorMsg, 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-
-        -- Validate end_date_time is also in the future
-        IF @EndDateTime <= @CurrentDateTime
-        BEGIN
-            CLOSE event_cursor;
-            DEALLOCATE event_cursor;
-
-            SET @ErrorMsg = CONCAT(
-                'Event validation failed: End date/time must be in the future. ',
-                'Event "', @Title, '" (ID: ', @EventId, ') ',
-                'has end time: ', CONVERT(VARCHAR, @EndDateTime, 120), ', ',
-                'which is not after current time: ', CONVERT(VARCHAR, @CurrentDateTime, 120)
-            );
-
-            RAISERROR(@ErrorMsg, 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-
-        FETCH NEXT FROM event_cursor INTO @EventId, @Title, @StartDateTime, @EndDateTime;
-    END
-
-    CLOSE event_cursor;
-    DEALLOCATE event_cursor;
-END;
-GO
+-- -- =============================================
+-- -- V7: Event DateTime Validation Trigger
+-- -- =============================================
+-- -- Purpose: Ensure event start and end times are in the future
+-- -- Created: 2024-12-05
+-- -- =============================================
+-- -- Create trigger to validate event date/time
+-- CREATE TRIGGER trg_ValidateEventDateTime
+-- ON event
+-- AFTER INSERT, UPDATE
+-- AS
+-- BEGIN
+--     SET NOCOUNT ON;
+--
+--     DECLARE @EventId BIGINT;
+--     DECLARE @Title NVARCHAR(255);
+--     DECLARE @StartDateTime DATETIME;
+--     DECLARE @EndDateTime DATETIME;
+--     DECLARE @CurrentDateTime DATETIME = GETDATE();
+--     DECLARE @ErrorMsg NVARCHAR(500);
+--
+--     -- Check each inserted/updated event
+--     -- Use LOCAL cursor to avoid naming conflicts
+--     DECLARE event_cursor CURSOR LOCAL FOR
+--         SELECT event_id, title, start_date_time, end_date_time
+--         FROM inserted;
+--
+--     OPEN event_cursor;
+--     FETCH NEXT FROM event_cursor INTO @EventId, @Title, @StartDateTime, @EndDateTime;
+--
+--     WHILE @@FETCH_STATUS = 0
+--     BEGIN
+--         -- Validate start_date_time is in the future
+--         IF @StartDateTime <= @CurrentDateTime
+--         BEGIN
+--             CLOSE event_cursor;
+--             DEALLOCATE event_cursor;
+--
+--             SET @ErrorMsg = CONCAT(
+--                 'Event validation failed: Start date/time must be in the future. ',
+--                 'Event "', @Title, '" (ID: ', @EventId, ') ',
+--                 'has start time: ', CONVERT(VARCHAR, @StartDateTime, 120), ', ',
+--                 'which is not after current time: ', CONVERT(VARCHAR, @CurrentDateTime, 120)
+--             );
+--
+--             RAISERROR(@ErrorMsg, 16, 1);
+--             ROLLBACK TRANSACTION;
+--             RETURN;
+--         END
+--
+--         -- Validate end_date_time is after start_date_time
+--         IF @EndDateTime <= @StartDateTime
+--         BEGIN
+--             CLOSE event_cursor;
+--             DEALLOCATE event_cursor;
+--
+--             SET @ErrorMsg = CONCAT(
+--                 'Event validation failed: End date/time must be after start date/time. ',
+--                 'Event "', @Title, '" (ID: ', @EventId, ') ',
+--                 'has start time: ', CONVERT(VARCHAR, @StartDateTime, 120), ', ',
+--                 'end time: ', CONVERT(VARCHAR, @EndDateTime, 120)
+--             );
+--
+--             RAISERROR(@ErrorMsg, 16, 1);
+--             ROLLBACK TRANSACTION;
+--             RETURN;
+--         END
+--
+--         -- Validate end_date_time is also in the future
+--         IF @EndDateTime <= @CurrentDateTime
+--         BEGIN
+--             CLOSE event_cursor;
+--             DEALLOCATE event_cursor;
+--
+--             SET @ErrorMsg = CONCAT(
+--                 'Event validation failed: End date/time must be in the future. ',
+--                 'Event "', @Title, '" (ID: ', @EventId, ') ',
+--                 'has end time: ', CONVERT(VARCHAR, @EndDateTime, 120), ', ',
+--                 'which is not after current time: ', CONVERT(VARCHAR, @CurrentDateTime, 120)
+--             );
+--
+--             RAISERROR(@ErrorMsg, 16, 1);
+--             ROLLBACK TRANSACTION;
+--             RETURN;
+--         END
+--
+--         FETCH NEXT FROM event_cursor INTO @EventId, @Title, @StartDateTime, @EndDateTime;
+--     END
+--
+--     CLOSE event_cursor;
+--     DEALLOCATE event_cursor;
+-- END;
+-- GO
 
 -- Test comment: This trigger validates:
 -- 1. start_date_time must be > GETDATE()
@@ -1373,6 +1373,215 @@ BEGIN
 
     RETURN @UpdatedCount;
 END;
+GO
+
+-- =============================================
+-- V10 & V11: Event & Session Deletion Procedures
+-- =============================================
+-- Purpose: Stored procedures and functions for deleting events and sessions with validation
+-- Created: 2024-12-08
+-- =============================================
+
+-- ================================================
+-- STORED PROCEDURE: Delete Event
+-- Uses: DELETE with validation (cannot delete if tickets sold, must be event owner)
+-- Input validation, conditional logic with IF statements
+-- ================================================
+CREATE PROCEDURE sp_DeleteEvent
+    @EventId BIGINT,
+    @OrganizerId BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Input validation
+    IF @EventId IS NULL OR @OrganizerId IS NULL
+BEGIN
+        RAISERROR('EventId and OrganizerId are required', 16, 1);
+        RETURN;
+END
+
+    -- Validate event exists
+    IF NOT EXISTS (SELECT 1 FROM event WHERE event_id = @EventId)
+BEGIN
+        RAISERROR('Event not found', 16, 1);
+        RETURN;
+END
+
+    -- Validate organizer owns the event
+    IF NOT EXISTS (
+        SELECT 1 FROM event
+        WHERE event_id = @EventId AND organizer_id = @OrganizerId
+    )
+BEGIN
+        RAISERROR('You do not have permission to delete this event', 16, 1);
+        RETURN;
+END
+
+    -- Check if any tickets have been sold for this event
+    -- Join through ticket_category to find sold tickets
+    DECLARE @TotalSoldTickets INT;
+SELECT @TotalSoldTickets = COUNT(*)
+FROM ticket t
+         INNER JOIN ticket_category tc ON t.category_id = tc.category_id
+WHERE tc.event_id = @EventId;
+
+IF @TotalSoldTickets > 0
+BEGIN
+        RAISERROR('Cannot delete event with %d sold tickets. Please cancel the event and process refunds first.', 16, 1, @TotalSoldTickets);
+        RETURN;
+END
+
+    -- Get event status for logging
+    DECLARE @EventTitle NVARCHAR(255);
+    DECLARE @EventStatus NVARCHAR(50);
+SELECT @EventTitle = title, @EventStatus = event_status
+FROM event
+WHERE event_id = @EventId;
+
+-- Delete the event (CASCADE will handle sessions, ticket_categories, etc.)
+DELETE FROM event WHERE event_id = @EventId;
+
+-- Return success message with deleted event info
+SELECT
+    @EventId AS DeletedEventId,
+    @EventTitle AS DeletedEventTitle,
+    @EventStatus AS PreviousStatus,
+    'Event deleted successfully' AS Message;
+END;
+GO
+
+-- ================================================
+-- V11: DELETE SESSION STORED PROCEDURE
+-- Implements session deletion with validation
+-- ================================================
+
+-- ================================================
+-- FUNCTION: Get Sold Tickets Count for Session
+-- Returns the count of sold tickets for a specific session
+-- ================================================
+CREATE FUNCTION fn_GetSessionSoldTickets
+(
+    @SessionId BIGINT,
+    @EventId BIGINT
+)
+    RETURNS INT
+AS
+BEGIN
+    DECLARE @SoldCount INT;
+
+SELECT @SoldCount = COUNT(*)
+FROM ticket t
+         INNER JOIN ticket_category tc ON t.category_id = tc.category_id
+WHERE tc.session_id = @SessionId AND tc.event_id = @EventId;
+
+RETURN ISNULL(@SoldCount, 0);
+END;
+GO
+
+-- ================================================
+-- STORED PROCEDURE: Delete Session
+-- Uses: DELETE with validation
+-- - Cannot delete if session has sold tickets
+-- - Cannot delete if it's the last session of an event
+-- - Must be event owner
+-- Input validation, conditional logic with IF statements
+-- ================================================
+CREATE PROCEDURE sp_DeleteSession
+    @SessionId BIGINT,
+    @EventId BIGINT,
+    @OrganizerId BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Input validation
+    IF @SessionId IS NULL OR @EventId IS NULL OR @OrganizerId IS NULL
+BEGIN
+        RAISERROR('SessionId, EventId and OrganizerId are required', 16, 1);
+        RETURN;
+END
+
+    -- Validate event exists
+    IF NOT EXISTS (SELECT 1 FROM event WHERE event_id = @EventId)
+BEGIN
+        RAISERROR('Event not found', 16, 1);
+        RETURN;
+END
+
+    -- Validate session exists
+    IF NOT EXISTS (
+        SELECT 1 FROM [session]
+        WHERE session_id = @SessionId AND event_id = @EventId
+    )
+BEGIN
+        RAISERROR('Session not found', 16, 1);
+        RETURN;
+END
+
+    -- Validate organizer owns the event
+    IF NOT EXISTS (
+        SELECT 1 FROM event
+        WHERE event_id = @EventId AND organizer_id = @OrganizerId
+    )
+BEGIN
+        RAISERROR('You do not have permission to delete this session', 16, 1);
+        RETURN;
+END
+
+    -- Check if this is the last session of the event
+    DECLARE @SessionCount INT;
+SELECT @SessionCount = COUNT(*) FROM [session] WHERE event_id = @EventId;
+
+IF @SessionCount <= 1
+BEGIN
+        RAISERROR('Cannot delete the last session of an event. Delete the entire event instead.', 16, 1);
+        RETURN;
+END
+
+    -- Check if any tickets have been sold for this session
+    DECLARE @TotalSoldTickets INT;
+    SET @TotalSoldTickets = dbo.fn_GetSessionSoldTickets(@SessionId, @EventId);
+
+    IF @TotalSoldTickets > 0
+BEGIN
+        RAISERROR('Cannot delete session with %d sold tickets. Please cancel tickets and process refunds first.', 16, 1, @TotalSoldTickets);
+        RETURN;
+END
+
+    -- Get session info for logging
+    DECLARE @SessionType NVARCHAR(255);
+    DECLARE @StartDateTime DATETIME2;
+SELECT @SessionType = type, @StartDateTime = start_date_time
+FROM [session]
+WHERE session_id = @SessionId AND event_id = @EventId;
+
+-- Delete ticket categories first (they reference the session)
+DELETE FROM ticket_category
+WHERE session_id = @SessionId AND event_id = @EventId;
+
+-- Delete from online_session or offline_session (child tables)
+DELETE FROM online_session
+WHERE session_id = @SessionId AND event_id = @EventId;
+
+DELETE FROM offline_session
+WHERE session_id = @SessionId AND event_id = @EventId;
+
+-- Delete the session
+DELETE FROM [session]
+WHERE session_id = @SessionId AND event_id = @EventId;
+
+-- Return success message with deleted session info
+SELECT
+    @SessionId AS DeletedSessionId,
+    @EventId AS EventId,
+    @SessionType AS SessionType,
+    @StartDateTime AS StartDateTime,
+    'Session deleted successfully' AS Message;
+END;
+GO
+
+PRINT 'Delete session stored procedure and function created successfully.';
 GO
 
 -- ================================================
